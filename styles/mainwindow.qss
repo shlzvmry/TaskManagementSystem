@@ -1,0 +1,235 @@
+/* 主窗口样式 */
+QMainWindow {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+/* 中央部件 */
+QWidget {
+    background-color: #1e1e1e;
+}
+
+/* 标题标签 */
+#titleLabel {
+    color: #657896;
+    font-size: 30px;
+    font-weight: bold;
+    padding: 10px;
+    border-bottom: 2px solid #657896;
+    margin-bottom: 10px;
+}
+
+/* Tab控件 */
+#mainTabWidget {
+    background-color: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+#mainTabWidget::pane {
+    background-color: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+#mainTabWidget::tab-bar {
+    alignment: center;
+}
+
+#mainTabWidget QTabBar::tab {
+    background-color: #3d3d3d;
+    color: #cccccc;
+    padding: 8px 20px;
+    margin-right: 2px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    min-width: 100px;
+}
+
+#mainTabWidget QTabBar::tab:selected {
+    background-color: #657896;
+    color: #ffffff;
+}
+
+#mainTabWidget QTabBar::tab:hover:!selected {
+    background-color: #4a5a6d;
+    color: #ffffff;
+}
+
+/* 按钮通用样式 - 所有按钮统一颜色 */
+QPushButton {
+    background-color: #657896;
+    color: #ffffff;
+    border: 1px solid #4d4d4d;
+    border-radius: 4px;
+    padding: 8px 16px 8px 16px; /* 左边留出图标空间 */
+    font-size: 14px;
+    text-align: left;
+    min-height: 20px;
+}
+
+QPushButton:hover {
+    background-color: #4a5a6d;
+    border-color: #657896;
+}
+
+QPushButton:pressed {
+    background-color: #3a4a5d;
+    border-color: #657896;
+}
+
+QPushButton:disabled {
+    background-color: #2d2d2d;
+    color: #666666;
+    border-color: #3d3d3d;
+}
+
+/* 按钮图标样式 - 统一设置图标位置和大小 */
+QPushButton::menu-indicator {
+    image: none;
+}
+
+/* 设置按钮的图标 - 所有图标都统一大小为22x22 */
+QPushButton[objectName^="add"],
+QPushButton[objectName^="edit"],
+QPushButton[objectName^="delete"],
+QPushButton[objectName^="refresh"],
+QPushButton[objectName^="quickRecord"],
+QPushButton[objectName^="listView"],
+QPushButton[objectName^="kanbanView"],
+QPushButton[objectName^="calendarView"] {
+    qproperty-iconSize: 20px; /* 设置图标大小 */
+    padding-left: 15px; /* 左边更大的padding给图标 */
+    background-position: left 10px center;
+    background-repeat: no-repeat;
+    background-origin: content;
+}
+
+/* 视图切换按钮 */
+#listViewBtn, #kanbanViewBtn, #calendarViewBtn {
+    padding: 8px 16px;
+    min-height: 15px;
+}
+
+/* 标签样式 */
+#taskListLabel, #inspirationListLabel, #statisticLabel, #settingLabel {
+    background-color: #2d2d2d;
+    border: 2px dashed #3d3d3d;
+    border-radius: 8px;
+    color: #888888;
+    font-size: 16px;
+    padding: 20px;
+    text-align: center;
+}
+
+/* 状态栏样式 */
+QStatusBar {
+    background-color: #2d2d2d;
+    color: #cccccc;
+    border-top: 1px solid #3d3d3d;
+    font-size: 11px;
+    padding: 2px 8px;
+}
+
+/* 信息标签 */
+#infoLabel {
+    color: #657896;
+    font-size: 10px;
+    font-style: italic;
+    padding: 5px;
+    border-top: 1px solid #3d3d3d;
+    margin-top: 10px;
+}
+
+/* 工具栏布局样式 */
+QHBoxLayout, QVBoxLayout {
+    spacing: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+/* 标签样式 */
+QLabel {
+    color: #cccccc;
+    font-size: 12px;
+}
+
+/* 输入框样式 */
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border: 1px solid #3d3d3d;
+    border-radius: 4px;
+    padding: 6px 8px;
+    selection-background-color: #657896;
+}
+
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+    border: 2px solid #657896;
+}
+
+/* 组合框样式 */
+QComboBox {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border: 1px solid #3d3d3d;
+    border-radius: 4px;
+    padding: 6px 8px;
+    min-height: 30px;
+}
+
+QComboBox:hover {
+    border-color: #657896;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/dropdown_arrow.png); /* 如果需要可以添加下拉箭头图标 */
+    width: 12px;
+    height: 12px;
+}
+
+/* 复选框样式 */
+QCheckBox {
+    color: #cccccc;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #3d3d3d;
+    border-radius: 3px;
+    background-color: #2d2d2d;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #657896;
+    border-color: #657896;
+    image: url(:/icons/checkmark.png); /* 如果需要可以添加勾选图标 */
+}
+
+/* 单选框样式 */
+QRadioButton {
+    color: #cccccc;
+    spacing: 8px;
+}
+
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #3d3d3d;
+    border-radius: 8px;
+    background-color: #2d2d2d;
+}
+
+QRadioButton::indicator:checked {
+    background-color: #657896;
+    border-color: #657896;
+}
