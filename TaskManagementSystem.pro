@@ -12,10 +12,12 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    models/taskitem.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    models/taskitem.h
 
 
 #数据库模块
@@ -24,6 +26,15 @@ SOURCES += \
 
 HEADERS += \
     database/database.h
+
+#模型模块
+SOURCES += \
+    models/taskmodel.cpp \
+    models/inspirationmodel.cpp \
+
+HEADERS += \
+    models/taskmodel.h \
+    models/inspirationmodel.h \
 
 #控件模块
 SOURCES += \
@@ -39,7 +50,8 @@ DISTFILES += \
 # 包含路径
 INCLUDEPATH += \
     $$PWD/database \
-    $$PWD/widgets
+    $$PWD/widgets\
+    $$PWD/models
 
 # Default rules for deployment.
 CODECFORTR = UTF-8

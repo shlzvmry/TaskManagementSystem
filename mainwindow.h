@@ -7,6 +7,12 @@
 #include <QTabWidget>
 #include <QStatusBar>
 #include <QVBoxLayout>
+#include <QTableView>
+
+// 前向声明
+class TaskModel;
+class InspirationModel;
+class WatermarkWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -24,21 +30,43 @@ private slots:
     void showMainWindow();
     void quitApplication();
 
+    // 任务相关槽函数
+    void onAddTaskClicked();
+    void onEditTaskClicked();
+    void onDeleteTaskClicked();
+    void onRefreshTasksClicked();
+
+    // 灵感相关槽函数
+    void onQuickRecordClicked();
+
 private:
+    // UI组件
     QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
     QTabWidget *tabWidget;
     QStatusBar *statusBarWidget;
 
+    // 数据模型
+    TaskModel *taskModel;
+    InspirationModel *inspirationModel;
+
+    // 视图组件
+    QTableView *taskTableView;
+
+    // 初始化函数
     void setupSystemTray();
     void setupUI();
     void createWatermark();
     void loadStyleSheet();
+    void setupConnections();
 
     // 创建各个Tab页
     void createTaskTab();
     void createInspirationTab();
     void createStatisticTab();
     void createSettingTab();
+
+    // 工具函数
+    void updateStatusBar(const QString &message);
 };
 #endif // MAINWINDOW_H
