@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 #include "database/database.h"
 #include "widgets/watermarkwidget.h"
+#include "models/taskmodel.h"
+#include "models/inspirationmodel.h"
+
 #include <QApplication>
 #include <QScreen>
 #include <QFile>
@@ -10,9 +13,16 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QTableView>
+#include <QHeaderView>
+#include <QMessageBox>
+#include <QShortcut>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
+    , taskModel(nullptr)
+    , inspirationModel(nullptr)
+    , taskTableView(nullptr)
 {
     // 初始化数据库
     Database::instance().initDatabase();
@@ -31,7 +41,11 @@ MainWindow::MainWindow(QWidget *parent)
     setGeometry(x, y, width, height);
     setWindowTitle("个人工作与任务管理系统");
 
-    // 创建水印 - 必须先于其他控件
+    // 创建数据模型
+    taskModel = new TaskModel(this);
+    inspirationModel = new InspirationModel(this);
+
+    // 创建水印
     createWatermark();
 
     // 设置系统托盘
@@ -39,6 +53,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 初始化UI
     setupUI();
+
+    // 设置信号连接
+    setupConnections();
 }
 
 MainWindow::~MainWindow()
@@ -77,7 +94,9 @@ void MainWindow::setupUI()
     // 创建状态栏
     statusBarWidget = new QStatusBar(this);
     setStatusBar(statusBarWidget);
-    statusBarWidget->showMessage("就绪");
+    updateStatusBar(QString("就绪 | 任务总数: %1 | 已完成: %2")
+                        .arg(taskModel->getTaskCount())
+                        .arg(taskModel->getCompletedCount()));
 
     // 添加底部信息
     QLabel *infoLabel = new QLabel("开发者：谢静蕾 | 学号：2023414300117", centralWidget);
@@ -99,25 +118,25 @@ void MainWindow::createTaskTab()
     addBtn->setObjectName("addTaskBtn");
     addBtn->setIcon(QIcon(":/icons/add_icon.png"));
     addBtn->setText("添加任务");
-    addBtn->setToolTip("添加新任务");
+    addBtn->setToolTip("添加新任务 (Ctrl+N)");
 
     QPushButton *editBtn = new QPushButton(taskTab);
     editBtn->setObjectName("editTaskBtn");
     editBtn->setIcon(QIcon(":/icons/edit_icon.png"));
     editBtn->setText("编辑任务");
-    editBtn->setToolTip("编辑选中任务");
+    editBtn->setToolTip("编辑选中任务 (Ctrl+E)");
 
     QPushButton *deleteBtn = new QPushButton(taskTab);
     deleteBtn->setObjectName("deleteTaskBtn");
     deleteBtn->setIcon(QIcon(":/icons/delete_icon.png"));
     deleteBtn->setText("删除任务");
-    deleteBtn->setToolTip("删除选中任务");
+    deleteBtn->setToolTip("删除选中任务 (Delete)");
 
     QPushButton *refreshBtn = new QPushButton(taskTab);
     refreshBtn->setObjectName("refreshBtn");
     refreshBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
     refreshBtn->setText("刷新");
-    refreshBtn->setToolTip("刷新任务列表");
+    refreshBtn->setToolTip("刷新任务列表 (F5)");
 
     toolbarLayout->addWidget(addBtn);
     toolbarLayout->addWidget(editBtn);
@@ -125,11 +144,25 @@ void MainWindow::createTaskTab()
     toolbarLayout->addStretch();
     toolbarLayout->addWidget(refreshBtn);
 
-    // 创建任务列表区域
-    QLabel *listLabel = new QLabel("任务列表将显示在这里", taskTab);
-    listLabel->setObjectName("taskListLabel");
-    listLabel->setAlignment(Qt::AlignCenter);
-    listLabel->setMinimumHeight(400);
+    // 创建任务表格视图
+    taskTableView = new QTableView(taskTab);
+    taskTableView->setObjectName("taskTableView");
+    taskTableView->setModel(taskModel);
+    taskTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    taskTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+    taskTableView->setAlternatingRowColors(true);
+    taskTableView->setSortingEnabled(true);
+    taskTableView->sortByColumn(0, Qt::AscendingOrder);
+
+    // 设置列宽
+    taskTableView->horizontalHeader()->setStretchLastSection(true);
+    taskTableView->setColumnWidth(0, 50);   // ID
+    taskTableView->setColumnWidth(1, 200);  // 标题
+    taskTableView->setColumnWidth(2, 100);  // 分类
+    taskTableView->setColumnWidth(3, 80);   // 优先级
+    taskTableView->setColumnWidth(4, 80);   // 状态
+    taskTableView->setColumnWidth(5, 150);  // 截止时间
+    taskTableView->setColumnWidth(6, 150);  // 创建时间
 
     // 创建视图切换按钮
     QHBoxLayout *viewLayout = new QHBoxLayout();
@@ -147,7 +180,7 @@ void MainWindow::createTaskTab()
     viewLayout->addStretch();
 
     layout->addLayout(toolbarLayout);
-    layout->addWidget(listLabel, 1);
+    layout->addWidget(taskTableView, 1);
     layout->addLayout(viewLayout);
 
     tabWidget->addTab(taskTab, "任务管理");
@@ -235,35 +268,154 @@ void MainWindow::createSettingTab()
     tabWidget->addTab(settingTab, "系统设置");
 }
 
+void MainWindow::setupConnections()
+{
+    // 查找按钮并连接信号
+    QPushButton *addBtn = findChild<QPushButton*>("addTaskBtn");
+    if (addBtn) {
+        connect(addBtn, &QPushButton::clicked, this, &MainWindow::onAddTaskClicked);
+    }
+
+    QPushButton *editBtn = findChild<QPushButton*>("editTaskBtn");
+    if (editBtn) {
+        connect(editBtn, &QPushButton::clicked, this, &MainWindow::onEditTaskClicked);
+    }
+
+    QPushButton *deleteBtn = findChild<QPushButton*>("deleteTaskBtn");
+    if (deleteBtn) {
+        connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::onDeleteTaskClicked);
+    }
+
+    QPushButton *refreshBtn = findChild<QPushButton*>("refreshBtn");
+    if (refreshBtn) {
+        connect(refreshBtn, &QPushButton::clicked, this, &MainWindow::onRefreshTasksClicked);
+    }
+
+    QPushButton *quickRecordBtn = findChild<QPushButton*>("quickRecordBtn");
+    if (quickRecordBtn) {
+        connect(quickRecordBtn, &QPushButton::clicked, this, &MainWindow::onQuickRecordClicked);
+    }
+
+    // 快捷键
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_N), this, SLOT(onAddTaskClicked()));
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_E), this, SLOT(onEditTaskClicked()));
+    new QShortcut(QKeySequence(Qt::Key_Delete), this, SLOT(onDeleteTaskClicked()));
+    new QShortcut(QKeySequence(Qt::Key_F5), this, SLOT(onRefreshTasksClicked()));
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I), this, SLOT(onQuickRecordClicked()));
+
+    // 数据模型信号
+    if (taskModel) {
+        // 当模型数据变化时更新状态栏
+        connect(taskModel, &TaskModel::taskAdded, this, [this](int taskId) {
+            Q_UNUSED(taskId);
+            updateStatusBar(QString("任务添加成功 | 任务总数: %1 | 已完成: %2")
+                                .arg(taskModel->getTaskCount())
+                                .arg(taskModel->getCompletedCount()));
+        });
+
+        connect(taskModel, &TaskModel::taskUpdated, this, [this](int taskId) {
+            Q_UNUSED(taskId);
+            updateStatusBar(QString("任务更新成功 | 任务总数: %1 | 已完成: %2")
+                                .arg(taskModel->getTaskCount())
+                                .arg(taskModel->getCompletedCount()));
+        });
+
+        connect(taskModel, &TaskModel::taskDeleted, this, [this](int taskId) {
+            Q_UNUSED(taskId);
+            updateStatusBar(QString("任务删除成功 | 任务总数: %1 | 已完成: %2")
+                                .arg(taskModel->getTaskCount())
+                                .arg(taskModel->getCompletedCount()));
+        });
+    }
+}
+
+void MainWindow::onAddTaskClicked()
+{
+    QMessageBox::information(this, "功能开发中", "添加任务功能将在下一阶段实现");
+    updateStatusBar("准备添加新任务...");
+}
+
+void MainWindow::onEditTaskClicked()
+{
+    if (!taskTableView || !taskTableView->selectionModel()->hasSelection()) {
+        QMessageBox::warning(this, "提示", "请先选择一个任务");
+        return;
+    }
+
+    QModelIndex index = taskTableView->selectionModel()->selectedRows().first();
+    int taskId = taskModel->data(index, Qt::UserRole + 1).toInt();
+
+    QMessageBox::information(this, "功能开发中",
+                             QString("编辑任务功能将在下一阶段实现\n任务ID: %1").arg(taskId));
+    updateStatusBar(QString("准备编辑任务 ID: %1").arg(taskId));
+}
+
+void MainWindow::onDeleteTaskClicked()
+{
+    if (!taskTableView || !taskTableView->selectionModel()->hasSelection()) {
+        QMessageBox::warning(this, "提示", "请先选择一个任务");
+        return;
+    }
+
+    QModelIndex index = taskTableView->selectionModel()->selectedRows().first();
+    int taskId = taskModel->data(index, Qt::UserRole + 1).toInt();
+    QString taskTitle = taskModel->data(index, Qt::UserRole + 2).toString();
+
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "确认删除",
+                                  QString("确定要删除任务 '%1' 吗?\n(将移动到回收站)")
+                                      .arg(taskTitle),
+                                  QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        if (taskModel->deleteTask(taskId, true)) {
+            updateStatusBar(QString("任务 '%1' 已删除到回收站").arg(taskTitle));
+        } else {
+            QMessageBox::warning(this, "错误", "删除任务失败");
+        }
+    }
+}
+
+void MainWindow::onRefreshTasksClicked()
+{
+    if (taskModel) {
+        taskModel->refresh();
+        updateStatusBar("任务列表已刷新");
+    }
+}
+
+void MainWindow::onQuickRecordClicked()
+{
+    QMessageBox::information(this, "功能开发中", "快速记录灵感功能将在灵感记录模块实现");
+    updateStatusBar("准备记录灵感...");
+}
+
+void MainWindow::updateStatusBar(const QString &message)
+{
+    if (statusBarWidget) {
+        statusBarWidget->showMessage(message);
+    }
+}
+
 void MainWindow::createWatermark()
 {
     // 创建水印部件
     WatermarkWidget *watermark = new WatermarkWidget("谢静蕾 2023414300117", this);
 
-    // 确保水印覆盖整个窗口
     connect(this, &MainWindow::windowTitleChanged, watermark, [watermark, this]() {
         watermark->setGeometry(0, 0, this->width(), this->height());
     });
 
-    // 将水印置于底层
     watermark->lower();
-
-    // 设置水印为底层且不接收鼠标事件
     watermark->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     watermark->setFocusPolicy(Qt::NoFocus);
-
-    // 初始大小
     watermark->setGeometry(0, 0, width(), height());
-
-    // 强制重绘
     watermark->update();
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-
-    // 查找并更新水印大小
     WatermarkWidget *watermark = findChild<WatermarkWidget*>();
     if (watermark) {
         watermark->setGeometry(0, 0, width(), height());
