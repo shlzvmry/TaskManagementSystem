@@ -13,6 +13,7 @@
 class TaskModel;
 class InspirationModel;
 class WatermarkWidget;
+class TaskDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -35,6 +36,7 @@ private slots:
     void onEditTaskClicked();
     void onDeleteTaskClicked();
     void onRefreshTasksClicked();
+    void onTaskDoubleClicked(const QModelIndex &index);
 
     // 灵感相关槽函数
     void onQuickRecordClicked();
@@ -59,6 +61,7 @@ private:
     void createWatermark();
     void loadStyleSheet();
     void setupConnections();
+    void setupTaskTableView();
 
     // 创建各个Tab页
     void createTaskTab();
@@ -68,5 +71,6 @@ private:
 
     // 工具函数
     void updateStatusBar(const QString &message);
+    int getSelectedTaskId() const;
 };
 #endif // MAINWINDOW_H

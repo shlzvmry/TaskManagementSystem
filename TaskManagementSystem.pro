@@ -17,15 +17,15 @@ SOURCES += \
 
 HEADERS += \
     mainwindow.h \
-    models/taskitem.h
+    models/taskitem.h\
 
 
 #数据库模块
 SOURCES += \
-    database/database.cpp
+    database/database.cpp\
 
 HEADERS += \
-    database/database.h
+    database/database.h\
 
 #模型模块
 SOURCES += \
@@ -36,22 +36,42 @@ HEADERS += \
     models/taskmodel.h \
     models/inspirationmodel.h \
 
-#控件模块
+#对话框模块
 SOURCES += \
-    widgets/watermarkwidget.cpp
+    dialogs/taskdialog.cpp\
 
 HEADERS += \
-    widgets/watermarkwidget.h
+    dialogs/taskdialog.h \
+
+FORMS += \
+    dialogs/taskdialog.ui \
+    dialogs/taskdialog.ui \
+
+#控件模块
+SOURCES += \
+    widgets/watermarkwidget.cpp \
+    widgets/tagwidget.cpp \
+    widgets/prioritywidget.cpp \
+    widgets/statuswidget.cpp \
+
+HEADERS += \
+    widgets/watermarkwidget.h \
+    widgets/tagwidget.h \
+    widgets/prioritywidget.h \
+    widgets/statuswidget.h \
 
 #样式表文件
 DISTFILES += \
-    styles/mainwindow.qss
+    styles/mainwindow.qss \
+    styles/dialog.qss \
+    styles/widget.qss
 
 # 包含路径
 INCLUDEPATH += \
     $$PWD/database \
-    $$PWD/widgets\
-    $$PWD/models
+    $$PWD/widgets \
+    $$PWD/models \
+    $$PWD/dialogs \
 
 # Default rules for deployment.
 CODECFORTR = UTF-8
@@ -61,3 +81,4 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     resources/icons.qrc \
+    resources/images.qrc\
