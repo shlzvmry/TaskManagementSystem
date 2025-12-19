@@ -3,6 +3,7 @@
 #include "widgets/watermarkwidget.h"
 #include "models/taskmodel.h"
 #include "models/inspirationmodel.h"
+#include "dialogs/taskdialog.h"
 
 #include <QApplication>
 #include <QScreen>
@@ -17,6 +18,9 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QShortcut>
+#include <QMenuBar>
+#include <QMenu>
+
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -45,17 +49,10 @@ MainWindow::MainWindow(QWidget *parent)
     taskModel = new TaskModel(this);
     inspirationModel = new InspirationModel(this);
 
-    // 创建水印
-    createWatermark();
-
-    // 设置系统托盘
-    setupSystemTray();
-
-    // 初始化UI
-    setupUI();
-
-    // 设置信号连接
-    setupConnections();
+    createWatermark();    // 创建水印
+    setupSystemTray();    // 设置系统托盘
+    setupUI();    // 初始化UI
+    setupConnections();    // 设置信号连接
 }
 
 MainWindow::~MainWindow()
@@ -64,6 +61,48 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
+    // 创建菜单栏
+    QMenuBar *menuBar = new QMenuBar(this);
+    setMenuBar(menuBar);
+
+    // 文件菜单
+    QMenu *fileMenu = menuBar->addMenu("文件(&F)");
+    QAction *newAction = fileMenu->addAction("新建任务(&N)");
+    newAction->setShortcut(QKeySequence::New);
+    connect(newAction, &QAction::triggered, this, &MainWindow::onAddTaskClicked);
+
+    fileMenu->addSeparator();
+    QAction *exitAction = fileMenu->addAction("退出(&X)");
+    exitAction->setShortcut(QKeySequence::Quit);
+    connect(exitAction, &QAction::triggered, this, &MainWindow::quitApplication);
+
+    // 编辑菜单
+    QMenu *editMenu = menuBar->addMenu("编辑(&E)");
+    QAction *editAction = editMenu->addAction("编辑任务(&E)");
+    editAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    connect(editAction, &QAction::triggered, this, &MainWindow::onEditTaskClicked);
+
+    QAction *deleteAction = editMenu->addAction("删除任务(&D)");
+    deleteAction->setShortcut(QKeySequence::Delete);
+    connect(deleteAction, &QAction::triggered, this, &MainWindow::onDeleteTaskClicked);
+
+    editMenu->addSeparator();
+    QAction *refreshAction = editMenu->addAction("刷新(&R)");
+    refreshAction->setShortcut(QKeySequence::Refresh);
+    connect(refreshAction, &QAction::triggered, this, &MainWindow::onRefreshTasksClicked);
+
+    // 帮助菜单
+    QMenu *helpMenu = menuBar->addMenu("帮助(&H)");
+    QAction *aboutAction = helpMenu->addAction("关于(&A)");
+    connect(aboutAction, &QAction::triggered, this, []() {
+        QMessageBox::about(nullptr, "关于",
+                           "个人工作与任务管理系统\n\n"
+                           "版本: 1.0.0\n"
+                           "开发者: 谢静蕾\n"
+                           "学号: 2023414300117\n\n"
+                           "基于 Qt 6 开发的任务管理系统，支持任务管理、灵感记录、统计报表等功能。");
+    });
+
     // 创建中央部件
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
@@ -147,22 +186,7 @@ void MainWindow::createTaskTab()
     // 创建任务表格视图
     taskTableView = new QTableView(taskTab);
     taskTableView->setObjectName("taskTableView");
-    taskTableView->setModel(taskModel);
-    taskTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    taskTableView->setSelectionMode(QAbstractItemView::SingleSelection);
-    taskTableView->setAlternatingRowColors(true);
-    taskTableView->setSortingEnabled(true);
-    taskTableView->sortByColumn(0, Qt::AscendingOrder);
-
-    // 设置列宽
-    taskTableView->horizontalHeader()->setStretchLastSection(true);
-    taskTableView->setColumnWidth(0, 50);   // ID
-    taskTableView->setColumnWidth(1, 200);  // 标题
-    taskTableView->setColumnWidth(2, 100);  // 分类
-    taskTableView->setColumnWidth(3, 80);   // 优先级
-    taskTableView->setColumnWidth(4, 80);   // 状态
-    taskTableView->setColumnWidth(5, 150);  // 截止时间
-    taskTableView->setColumnWidth(6, 150);  // 创建时间
+    setupTaskTableView();
 
     // 创建视图切换按钮
     QHBoxLayout *viewLayout = new QHBoxLayout();
@@ -185,6 +209,40 @@ void MainWindow::createTaskTab()
 
     tabWidget->addTab(taskTab, "任务管理");
 }
+
+void MainWindow::setupTaskTableView()
+{
+    if (!taskTableView || !taskModel) return;
+
+    taskTableView->setModel(taskModel);
+    taskTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    taskTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+    taskTableView->setAlternatingRowColors(true);
+    taskTableView->setSortingEnabled(true);
+    taskTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    taskTableView->sortByColumn(0, Qt::AscendingOrder);
+
+    // 设置列宽
+    taskTableView->horizontalHeader()->setStretchLastSection(true);
+    taskTableView->setColumnWidth(0, 50);   // ID
+    taskTableView->setColumnWidth(1, 200);  // 标题
+    taskTableView->setColumnWidth(2, 100);  // 分类
+    taskTableView->setColumnWidth(3, 80);   // 优先级
+    taskTableView->setColumnWidth(4, 80);   // 状态
+    taskTableView->setColumnWidth(5, 150);  // 截止时间
+    taskTableView->setColumnWidth(6, 150);  // 创建时间
+
+    // 设置表头
+    QHeaderView *header = taskTableView->horizontalHeader();
+    header->setDefaultAlignment(Qt::AlignCenter);
+    header->setSectionResizeMode(QHeaderView::Interactive);
+    header->setHighlightSections(false);
+
+    // 设置行高
+    taskTableView->verticalHeader()->setDefaultSectionSize(30);
+    taskTableView->verticalHeader()->setVisible(false);
+}
+
 
 void MainWindow::setupSystemTray()
 {
@@ -296,6 +354,11 @@ void MainWindow::setupConnections()
         connect(quickRecordBtn, &QPushButton::clicked, this, &MainWindow::onQuickRecordClicked);
     }
 
+    // 连接表格双击事件
+    if (taskTableView) {
+        connect(taskTableView, &QTableView::doubleClicked, this, &MainWindow::onTaskDoubleClicked);
+    }
+
     // 快捷键
     new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_N), this, SLOT(onAddTaskClicked()));
     new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_E), this, SLOT(onEditTaskClicked()));
@@ -305,7 +368,6 @@ void MainWindow::setupConnections()
 
     // 数据模型信号
     if (taskModel) {
-        // 当模型数据变化时更新状态栏
         connect(taskModel, &TaskModel::taskAdded, this, [this](int taskId) {
             Q_UNUSED(taskId);
             updateStatusBar(QString("任务添加成功 | 任务总数: %1 | 已完成: %2")
@@ -331,35 +393,56 @@ void MainWindow::setupConnections()
 
 void MainWindow::onAddTaskClicked()
 {
-    QMessageBox::information(this, "功能开发中", "添加任务功能将在下一阶段实现");
-    updateStatusBar("准备添加新任务...");
+    TaskDialog dialog(this);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QVariantMap taskData = dialog.getTaskData();
+
+        if (taskModel->addTask(taskData)) {
+            updateStatusBar("新任务添加成功");
+        } else {
+            QMessageBox::warning(this, "错误", "添加任务失败");
+        }
+    }
 }
 
 void MainWindow::onEditTaskClicked()
 {
-    if (!taskTableView || !taskTableView->selectionModel()->hasSelection()) {
+    int taskId = getSelectedTaskId();
+    if (taskId == -1) {
         QMessageBox::warning(this, "提示", "请先选择一个任务");
         return;
     }
 
-    QModelIndex index = taskTableView->selectionModel()->selectedRows().first();
-    int taskId = taskModel->data(index, Qt::UserRole + 1).toInt();
+    QVariantMap taskData = taskModel->getTask(taskId);
+    if (taskData.isEmpty()) {
+        QMessageBox::warning(this, "错误", "获取任务信息失败");
+        return;
+    }
 
-    QMessageBox::information(this, "功能开发中",
-                             QString("编辑任务功能将在下一阶段实现\n任务ID: %1").arg(taskId));
-    updateStatusBar(QString("准备编辑任务 ID: %1").arg(taskId));
+    TaskDialog dialog(taskData, this);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QVariantMap updatedData = dialog.getTaskData();
+
+        if (taskModel->updateTask(taskId, updatedData)) {
+            updateStatusBar("任务更新成功");
+        } else {
+            QMessageBox::warning(this, "错误", "更新任务失败");
+        }
+    }
 }
 
 void MainWindow::onDeleteTaskClicked()
 {
-    if (!taskTableView || !taskTableView->selectionModel()->hasSelection()) {
+    int taskId = getSelectedTaskId();
+    if (taskId == -1) {
         QMessageBox::warning(this, "提示", "请先选择一个任务");
         return;
     }
 
-    QModelIndex index = taskTableView->selectionModel()->selectedRows().first();
-    int taskId = taskModel->data(index, Qt::UserRole + 1).toInt();
-    QString taskTitle = taskModel->data(index, Qt::UserRole + 2).toString();
+    QVariantMap taskData = taskModel->getTask(taskId);
+    QString taskTitle = taskData.value("title").toString();
 
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "确认删除",
@@ -382,6 +465,22 @@ void MainWindow::onRefreshTasksClicked()
         taskModel->refresh();
         updateStatusBar("任务列表已刷新");
     }
+}
+
+void MainWindow::onTaskDoubleClicked(const QModelIndex &index)
+{
+    Q_UNUSED(index);
+    onEditTaskClicked();
+}
+
+int MainWindow::getSelectedTaskId() const
+{
+    if (!taskTableView || !taskTableView->selectionModel()->hasSelection()) {
+        return -1;
+    }
+
+    QModelIndex index = taskTableView->selectionModel()->selectedRows().first();
+    return taskModel->data(index, TaskModel::IdRole).toInt();
 }
 
 void MainWindow::onQuickRecordClicked()
@@ -427,19 +526,37 @@ void MainWindow::loadStyleSheet()
 {
     // 加载主窗口样式
     QString absolutePath = "D:/Qt/TaskManagementSystem/styles/mainwindow.qss";
-    QFile file(absolutePath);
-    if (file.open(QFile::ReadOnly | QFile::Text)) {
-        QString styleSheet = QLatin1String(file.readAll());
-        if (!styleSheet.isEmpty()) {
-            qApp->setStyleSheet(styleSheet);
-            file.close();
-            qDebug() << "样式表从绝对路径加载成功：" << absolutePath;
-            return;
-        } else {
-            qDebug() << "样式表文件为空";
-        }
+    QFile mainFile(absolutePath);
+
+    QString styleSheet;
+
+    if (mainFile.open(QFile::ReadOnly | QFile::Text)) {
+        styleSheet = QLatin1String(mainFile.readAll());
+        mainFile.close();
+        qDebug() << "主窗口样式从绝对路径加载：" << absolutePath;
     } else {
-        qDebug() << "无法从绝对路径加载样式表：" << absolutePath;
+        qDebug() << "无法从绝对路径加载主窗口样式：" << absolutePath;
+    }
+    // 加载对话框样式
+    QFile dialogFile("D:/Qt/TaskManagementSystem/styles/dialog.qss");
+    if (dialogFile.open(QFile::ReadOnly | QFile::Text)) {
+        styleSheet += "\n" + QLatin1String(dialogFile.readAll());
+        dialogFile.close();
+        qDebug() << "对话框样式加载成功";
+    }
+
+    // 加载控件样式
+    QFile widgetFile("D:/Qt/TaskManagementSystem/styles/widget.qss");
+    if (widgetFile.open(QFile::ReadOnly | QFile::Text)) {
+        styleSheet += "\n" + QLatin1String(widgetFile.readAll());
+        widgetFile.close();
+        qDebug() << "控件样式加载成功";
+    }
+
+    if (!styleSheet.isEmpty()) {
+        qApp->setStyleSheet(styleSheet);
+    } else {
+        qDebug() << "样式表为空，使用默认样式";
     }
 }
 

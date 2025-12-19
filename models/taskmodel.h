@@ -4,6 +4,8 @@
 #include <QAbstractTableModel>
 #include <QSqlDatabase>
 #include <QList>
+#include <QColor>
+#include <QSqlRecord>
 #include "taskitem.h"
 
 class TaskModel : public QAbstractTableModel
@@ -85,7 +87,6 @@ private:
 
     void loadTasks(bool includeDeleted = false);
     TaskItem loadTaskFromDb(int taskId) const;
-    bool saveTaskToDb(const TaskItem &task);
     QList<int> loadTaskTags(int taskId) const;
     bool updateTaskTags(int taskId, const QList<int> &tagIds);
     QDateTime getCurrentTimestamp() const;
