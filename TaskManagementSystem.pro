@@ -39,13 +39,17 @@ HEADERS += \
 #对话框模块
 SOURCES += \
     dialogs/taskdialog.cpp\
+    dialogs/recyclebindialog.cpp\
 
 HEADERS += \
     dialogs/taskdialog.h \
+    dialogs/recyclebindialog.h\
 
 FORMS += \
+    dialogs/recyclebindialog.ui \
     dialogs/taskdialog.ui \
-    dialogs/taskdialog.ui \
+    dialogs/recyclebindialog.ui \
+
 
 #控件模块
 SOURCES += \

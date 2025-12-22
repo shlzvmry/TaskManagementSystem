@@ -57,15 +57,17 @@ public:
     bool deleteTask(int taskId, bool softDelete = true);
     bool restoreTask(int taskId);
     QVariantMap getTask(int taskId) const;
+    bool permanentDeleteTask(int taskId);
 
     // 批量操作
     QList<QVariantMap> getAllTasks(bool includeDeleted = false) const;
     QList<QVariantMap> getTasksByStatus(int status) const;
     QList<QVariantMap> getTasksByCategory(int categoryId) const;
     QList<QVariantMap> getTasksByTag(int tagId) const;
+    QList<QVariantMap> getDeletedTasks() const;
 
     // 刷新数据
-    void refresh();
+    void refresh(bool showDeleted = false);
 
     // 状态和优先级选项
     static QMap<int, QString> getPriorityOptions();
@@ -76,14 +78,21 @@ public:
     int getCompletedCount() const;
     double getCompletionRate() const;
 
+    // 回收站统计
+    int getDeletedTaskCount() const;
+
 signals:
     void taskAdded(int taskId);
     void taskUpdated(int taskId);
     void taskDeleted(int taskId);
+    void taskRestored(int taskId);
+    void taskPermanentlyDeleted(int taskId);
+    void refreshRequested(bool showDeleted);
 
 private:
     QList<TaskItem> tasks;
     QSqlDatabase db;
+    bool showingDeleted;
 
     void loadTasks(bool includeDeleted = false);
     TaskItem loadTaskFromDb(int taskId) const;

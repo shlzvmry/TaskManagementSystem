@@ -4,6 +4,7 @@
 #include "models/taskmodel.h"
 #include "models/inspirationmodel.h"
 #include "dialogs/taskdialog.h"
+#include "dialogs/recyclebindialog.h"
 
 #include <QApplication>
 #include <QScreen>
@@ -27,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     , taskModel(nullptr)
     , inspirationModel(nullptr)
     , taskTableView(nullptr)
+    , recycleBinDialog(nullptr)
 {
     // 初始化数据库
     Database::instance().initDatabase();
@@ -49,10 +51,19 @@ MainWindow::MainWindow(QWidget *parent)
     taskModel = new TaskModel(this);
     inspirationModel = new InspirationModel(this);
 
+    // 创建回收站对话框
+    recycleBinDialog = new RecycleBinDialog(this);
+    recycleBinDialog->setTaskModel(taskModel);
+
     createWatermark();    // 创建水印
     setupSystemTray();    // 设置系统托盘
     setupUI();    // 初始化UI
     setupConnections();    // 设置信号连接
+
+    // 设置回收站对话框的TaskModel
+    if (recycleBinDialog && taskModel) {
+        recycleBinDialog->setTaskModel(taskModel);
+    }
 }
 
 MainWindow::~MainWindow()
@@ -70,6 +81,11 @@ void MainWindow::setupUI()
     QAction *newAction = fileMenu->addAction("新建任务(&N)");
     newAction->setShortcut(QKeySequence::New);
     connect(newAction, &QAction::triggered, this, &MainWindow::onAddTaskClicked);
+
+    // 回收站菜单项
+    QAction *recycleBinAction = fileMenu->addAction("回收站(&R)");
+    recycleBinAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R));
+    connect(recycleBinAction, &QAction::triggered, this, &MainWindow::onRecycleBinClicked);
 
     fileMenu->addSeparator();
     QAction *exitAction = fileMenu->addAction("退出(&X)");
@@ -133,9 +149,10 @@ void MainWindow::setupUI()
     // 创建状态栏
     statusBarWidget = new QStatusBar(this);
     setStatusBar(statusBarWidget);
-    updateStatusBar(QString("就绪 | 任务总数: %1 | 已完成: %2")
+    updateStatusBar(QString("就绪 | 任务总数: %1 | 已完成: %2 | 回收站: %3")
                         .arg(taskModel->getTaskCount())
-                        .arg(taskModel->getCompletedCount()));
+                        .arg(taskModel->getCompletedCount())
+                        .arg(taskModel->getDeletedTaskCount()));
 
     // 添加底部信息
     QLabel *infoLabel = new QLabel("开发者：谢静蕾 | 学号：2023414300117", centralWidget);
@@ -171,6 +188,13 @@ void MainWindow::createTaskTab()
     deleteBtn->setText("删除任务");
     deleteBtn->setToolTip("删除选中任务 (Delete)");
 
+    // 回收站按钮
+    QPushButton *recycleBinBtn = new QPushButton(taskTab);
+    recycleBinBtn->setObjectName("recycleBinBtn");
+    recycleBinBtn->setIcon(QIcon(":/icons/recycle_icon.png"));
+    recycleBinBtn->setText("回收站");
+    recycleBinBtn->setToolTip("打开回收站 (Ctrl+Shift+R)");
+
     QPushButton *refreshBtn = new QPushButton(taskTab);
     refreshBtn->setObjectName("refreshBtn");
     refreshBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
@@ -181,6 +205,7 @@ void MainWindow::createTaskTab()
     toolbarLayout->addWidget(editBtn);
     toolbarLayout->addWidget(deleteBtn);
     toolbarLayout->addStretch();
+    toolbarLayout->addWidget(recycleBinBtn);
     toolbarLayout->addWidget(refreshBtn);
 
     // 创建任务表格视图
@@ -354,6 +379,13 @@ void MainWindow::setupConnections()
         connect(quickRecordBtn, &QPushButton::clicked, this, &MainWindow::onQuickRecordClicked);
     }
 
+    QPushButton *recycleBinBtn = findChild<QPushButton*>("recycleBinBtn");
+    if (recycleBinBtn) {
+        connect(recycleBinBtn, &QPushButton::clicked, this, &MainWindow::onRecycleBinClicked);
+    }
+
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R), this, SLOT(onRecycleBinClicked()));
+
     // 连接表格双击事件
     if (taskTableView) {
         connect(taskTableView, &QTableView::doubleClicked, this, &MainWindow::onTaskDoubleClicked);
@@ -370,25 +402,62 @@ void MainWindow::setupConnections()
     if (taskModel) {
         connect(taskModel, &TaskModel::taskAdded, this, [this](int taskId) {
             Q_UNUSED(taskId);
-            updateStatusBar(QString("任务添加成功 | 任务总数: %1 | 已完成: %2")
+            updateStatusBar(QString("任务添加成功 | 任务总数: %1 | 已完成: %2 | 回收站: %3")
                                 .arg(taskModel->getTaskCount())
-                                .arg(taskModel->getCompletedCount()));
+                                .arg(taskModel->getCompletedCount())
+                                .arg(taskModel->getDeletedTaskCount()));
         });
 
         connect(taskModel, &TaskModel::taskUpdated, this, [this](int taskId) {
             Q_UNUSED(taskId);
-            updateStatusBar(QString("任务更新成功 | 任务总数: %1 | 已完成: %2")
+            updateStatusBar(QString("任务更新成功 | 任务总数: %1 | 已完成: %2 | 回收站: %3")
                                 .arg(taskModel->getTaskCount())
-                                .arg(taskModel->getCompletedCount()));
+                                .arg(taskModel->getCompletedCount())
+                                .arg(taskModel->getDeletedTaskCount()));
         });
 
         connect(taskModel, &TaskModel::taskDeleted, this, [this](int taskId) {
             Q_UNUSED(taskId);
-            updateStatusBar(QString("任务删除成功 | 任务总数: %1 | 已完成: %2")
+            updateStatusBar(QString("任务已移到回收站 | 任务总数: %1 | 已完成: %2 | 回收站: %3")
                                 .arg(taskModel->getTaskCount())
-                                .arg(taskModel->getCompletedCount()));
+                                .arg(taskModel->getCompletedCount())
+                                .arg(taskModel->getDeletedTaskCount()));
         });
+
     }
+}
+
+// 回收站按钮点击
+void MainWindow::onRecycleBinClicked()
+{
+    if (recycleBinDialog) {
+        recycleBinDialog->refreshDeletedTasks();
+        recycleBinDialog->exec();
+    }
+}
+
+// 任务恢复后的处理
+void MainWindow::onTaskRestored(int taskId)
+{
+    Q_UNUSED(taskId);
+    updateStatusBar(QString("任务已恢复 | 任务总数: %1 | 已完成: %2 | 回收站: %3")
+                        .arg(taskModel->getTaskCount())
+                        .arg(taskModel->getCompletedCount())
+                        .arg(taskModel->getDeletedTaskCount()));
+
+    if (taskModel) {
+        taskModel->refresh(false);
+    }
+}
+
+// 任务永久删除后的处理
+void MainWindow::onTaskPermanentlyDeleted(int taskId)
+{
+    Q_UNUSED(taskId);
+    updateStatusBar(QString("任务已永久删除 | 任务总数: %1 | 已完成: %2 | 回收站: %3")
+                        .arg(taskModel->getTaskCount())
+                        .arg(taskModel->getCompletedCount())
+                        .arg(taskModel->getDeletedTaskCount()));
 }
 
 void MainWindow::onAddTaskClicked()
@@ -446,13 +515,14 @@ void MainWindow::onDeleteTaskClicked()
 
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "确认删除",
-                                  QString("确定要删除任务 '%1' 吗?\n(将移动到回收站)")
+                                  QString("确定要将任务 '%1' 移动到回收站吗？\n(可以在回收站中恢复或永久删除)")
                                       .arg(taskTitle),
                                   QMessageBox::Yes | QMessageBox::No);
 
     if (reply == QMessageBox::Yes) {
+        // 使用软删除（移动到回收站）
         if (taskModel->deleteTask(taskId, true)) {
-            updateStatusBar(QString("任务 '%1' 已删除到回收站").arg(taskTitle));
+            updateStatusBar(QString("任务 '%1' 已移动到回收站").arg(taskTitle));
         } else {
             QMessageBox::warning(this, "错误", "删除任务失败");
         }
@@ -537,16 +607,19 @@ void MainWindow::loadStyleSheet()
     } else {
         qDebug() << "无法从绝对路径加载主窗口样式：" << absolutePath;
     }
+
     // 加载对话框样式
-    QFile dialogFile("D:/Qt/TaskManagementSystem/styles/dialog.qss");
+    QFile dialogFile("styles/dialog.qss");
     if (dialogFile.open(QFile::ReadOnly | QFile::Text)) {
         styleSheet += "\n" + QLatin1String(dialogFile.readAll());
         dialogFile.close();
         qDebug() << "对话框样式加载成功";
+    } else {
+        qDebug() << "对话框样式加载失败：" << dialogFile.errorString();
     }
 
     // 加载控件样式
-    QFile widgetFile("D:/Qt/TaskManagementSystem/styles/widget.qss");
+    QFile widgetFile("styles/widget.qss");
     if (widgetFile.open(QFile::ReadOnly | QFile::Text)) {
         styleSheet += "\n" + QLatin1String(widgetFile.readAll());
         widgetFile.close();
@@ -554,7 +627,9 @@ void MainWindow::loadStyleSheet()
     }
 
     if (!styleSheet.isEmpty()) {
+        qApp->setStyleSheet("");
         qApp->setStyleSheet(styleSheet);
+        qDebug() << "样式表应用成功";
     } else {
         qDebug() << "样式表为空，使用默认样式";
     }
