@@ -14,6 +14,7 @@ class TaskModel;
 class InspirationModel;
 class WatermarkWidget;
 class TaskDialog;
+class RecycleBinDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -37,9 +38,14 @@ private slots:
     void onDeleteTaskClicked();
     void onRefreshTasksClicked();
     void onTaskDoubleClicked(const QModelIndex &index);
+     void onRecycleBinClicked();
 
     // 灵感相关槽函数
     void onQuickRecordClicked();
+
+    //回收站相关
+    void onTaskRestored(int taskId);
+    void onTaskPermanentlyDeleted(int taskId);
 
 private:
     // UI组件
@@ -54,6 +60,9 @@ private:
 
     // 视图组件
     QTableView *taskTableView;
+
+    //对话框
+    RecycleBinDialog *recycleBinDialog;
 
     // 初始化函数
     void setupSystemTray();

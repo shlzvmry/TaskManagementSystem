@@ -17,9 +17,10 @@ static QSqlDatabase getDbConnection()
 
 TaskModel::TaskModel(QObject *parent)
     : QAbstractTableModel(parent)
+    , showingDeleted(false)  // 默认不显示已删除任务
 {
     qDebug() << "TaskModel构造函数";
-    refresh();
+    refresh(false);
 }
 
 TaskModel::~TaskModel()
@@ -139,9 +140,10 @@ bool TaskModel::setData(const QModelIndex &index, const QVariant &value, int rol
     return false;
 }
 
-void TaskModel::refresh()
+void TaskModel::refresh(bool showDeleted)
 {
-    loadTasks();
+    showingDeleted = showDeleted;
+    loadTasks(showDeleted);
 }
 
 void TaskModel::loadTasks(bool includeDeleted)
@@ -290,14 +292,6 @@ bool TaskModel::addTask(const QVariantMap &taskData)
     task.createdAt = getCurrentTimestamp();
     task.updatedAt = task.createdAt;
 
-    // 调试：打印要插入的数据
-    qDebug() << "标题:" << task.title;
-    qDebug() << "描述:" << task.description;
-    qDebug() << "分类ID:" << task.categoryId;
-    qDebug() << "优先级:" << task.priority;
-    qDebug() << "状态:" << task.status;
-    qDebug() << "创建时间:" << task.createdAt;
-
     QSqlQuery query(db);
     QString sql = QString(
         "INSERT INTO tasks (title, description, category_id, priority, "
@@ -405,6 +399,7 @@ bool TaskModel::updateTask(int taskId, const QVariantMap &taskData)
 
 bool TaskModel::deleteTask(int taskId, bool softDelete)
 {
+    qDebug() << "任务ID:" << taskId << ", 软删除:" << softDelete;
     QSqlDatabase db = getDbConnection();
     if (!db.isOpen()) {
         qDebug() << "TaskModel: 数据库未打开";
@@ -417,19 +412,94 @@ bool TaskModel::deleteTask(int taskId, bool softDelete)
         query.prepare("UPDATE tasks SET is_deleted = 1, updated_at = ? WHERE id = ?");
         query.addBindValue(getCurrentTimestamp());
         query.addBindValue(taskId);
+
+        if (!query.exec()) {
+            qDebug() << "软删除任务失败:" << query.lastError().text();
+            return false;
+        }
+
+        qDebug() << "任务软删除成功，影响行数:" << query.numRowsAffected();
+
+        refresh(showingDeleted);  // 刷新当前视图
+        emit taskDeleted(taskId);
+        return true;
     } else {
-        query.prepare("DELETE FROM tasks WHERE id = ?");
-        query.addBindValue(taskId);
+        return permanentDeleteTask(taskId);
+    }
+}
+
+QList<QVariantMap> TaskModel::getDeletedTasks() const
+{
+    QList<QVariantMap> taskList;
+
+    QSqlDatabase db = getDbConnection();
+    if (!db.isOpen()) {
+        qDebug() << "TaskModel: 数据库未打开";
+        return taskList;
     }
 
-    if (!query.exec()) {
-        qDebug() << "删除任务失败:" << query.lastError().text();
-        return false;
+    QSqlQuery query(db);
+    query.prepare("SELECT t.*, c.name as category_name, c.color as category_color "
+                  "FROM tasks t "
+                  "LEFT JOIN task_categories c ON t.category_id = c.id "
+                  "WHERE t.is_deleted = 1 "
+                  "ORDER BY t.updated_at DESC");
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap task;
+            // 获取所有字段
+            QSqlRecord record = query.record();
+            for (int i = 0; i < record.count(); ++i) {
+                QString fieldName = record.fieldName(i);
+                task[fieldName] = query.value(i);
+            }
+
+            // 加载标签
+            int taskId = task["id"].toInt();
+            QList<int> tagIds = loadTaskTags(taskId);
+            QVariantList tagNames, tagColors;
+
+            for (int tagId : tagIds) {
+                QSqlQuery tagQuery(db);
+                tagQuery.prepare("SELECT name, color FROM task_tags WHERE id = ?");
+                tagQuery.addBindValue(tagId);
+                if (tagQuery.exec() && tagQuery.next()) {
+                    tagNames.append(tagQuery.value("name").toString());
+                    tagColors.append(tagQuery.value("color").toString());
+                }
+            }
+
+            task["tag_ids"] = QVariant::fromValue(tagIds);
+            task["tag_names"] = tagNames;
+            task["tag_colors"] = tagColors;
+
+            taskList.append(task);
+        }
+        qDebug() << "总共找到" << taskList.size() << "个已删除任务";
+    } else {
+        qDebug() << "查询已删除任务失败:" << query.lastError().text();
     }
 
-    refresh();
-    emit taskDeleted(taskId);
-    return true;
+    return taskList;
+}
+
+int TaskModel::getDeletedTaskCount() const
+{
+    QSqlDatabase db = getDbConnection();
+    if (!db.isOpen()) {
+        qDebug() << "TaskModel: 数据库未打开";
+        return 0;
+    }
+
+    QSqlQuery query(db);
+    query.prepare("SELECT COUNT(*) FROM tasks WHERE is_deleted = 1");
+
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt();
+    }
+
+    return 0;
 }
 
 bool TaskModel::restoreTask(int taskId)
@@ -450,9 +520,61 @@ bool TaskModel::restoreTask(int taskId)
         return false;
     }
 
-    refresh();
-    emit taskUpdated(taskId);
+    // 如果当前显示已删除任务，刷新回收站视图
+    if (showingDeleted) {
+        refresh(true);
+    }
+
+    emit taskRestored(taskId);
     return true;
+}
+
+bool TaskModel::permanentDeleteTask(int taskId)
+{
+    QSqlDatabase db = getDbConnection();
+    if (!db.isOpen()) {
+        qDebug() << "TaskModel: 数据库未打开";
+        return false;
+    }
+
+    // 开始事务
+    db.transaction();
+
+    try {
+        // 1. 先删除任务标签关联
+        QSqlQuery deleteTagsQuery(db);
+        deleteTagsQuery.prepare("DELETE FROM task_tag_relations WHERE task_id = ?");
+        deleteTagsQuery.addBindValue(taskId);
+
+        if (!deleteTagsQuery.exec()) {
+            qDebug() << "删除任务标签关联失败:" << deleteTagsQuery.lastError().text();
+            db.rollback();
+            return false;
+        }
+
+        // 2. 删除任务本身
+        QSqlQuery deleteTaskQuery(db);
+        deleteTaskQuery.prepare("DELETE FROM tasks WHERE id = ?");
+        deleteTaskQuery.addBindValue(taskId);
+
+        if (!deleteTaskQuery.exec()) {
+            qDebug() << "永久删除任务失败:" << deleteTaskQuery.lastError().text();
+            db.rollback();
+            return false;
+        }
+
+        // 提交事务
+        db.commit();
+
+        // 刷新当前视图
+        refresh(showingDeleted);
+        emit taskPermanentlyDeleted(taskId);
+        return true;
+
+    } catch (...) {
+        db.rollback();
+        return false;
+    }
 }
 
 QVariantMap TaskModel::getTask(int taskId) const
