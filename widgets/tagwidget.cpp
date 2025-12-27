@@ -4,6 +4,83 @@
 #include <QPainter>
 #include <QDebug>
 #include <QCryptographicHash>
+#include <QStyleOptionButton>
+
+// --- 内部类：自定义标签按钮 ---
+class TagButton : public QPushButton {
+public:
+    TagButton(const QString &text, QWidget *parent = nullptr) : QPushButton(text, parent) {
+        setMouseTracking(true);
+        setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    }
+
+protected:
+    void enterEvent(QEnterEvent *event) override {
+        m_isHovered = true;
+        update();
+        QPushButton::enterEvent(event);
+    }
+
+    void leaveEvent(QEvent *event) override {
+        m_isHovered = false;
+        update();
+        QPushButton::leaveEvent(event);
+    }
+
+    void paintEvent(QPaintEvent *event) override {
+        Q_UNUSED(event);
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        // 1. 获取背景色
+        QColor bgColor = property("tagColor").value<QColor>();
+        if (!bgColor.isValid()) bgColor = QColor("#657896");
+
+        // 悬停时背景稍微变暗
+        if (m_isHovered) {
+            bgColor = bgColor.darker(110);
+        }
+
+        // 2. 绘制圆角背景 - 修改为 4px 圆角，与优先级按钮一致
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(bgColor);
+        painter.drawRoundedRect(rect(), 4, 4);
+
+        // 3. 绘制文字或删除图标
+        painter.setPen(Qt::white);
+        QFont font = painter.font();
+        font.setPointSize(10);
+        painter.setFont(font);
+
+        if (m_isHovered) {
+            // 悬停模式：绘制 "文字" 和 右上角的 "×"
+            QRect textRect = rect().adjusted(0, 0, -10, 0);
+            painter.drawText(textRect, Qt::AlignCenter, text());
+
+            // 绘制右上角小叉号
+            int iconSize = 14;
+            int margin = 4;
+            QRect closeRect(width() - iconSize - margin, margin, iconSize, iconSize);
+
+            painter.setBrush(QColor(255, 255, 255, 60));
+            painter.drawEllipse(closeRect);
+
+            painter.setPen(QPen(Qt::white, 1.5));
+            int p = 4;
+            painter.drawLine(closeRect.left() + p, closeRect.top() + p, closeRect.right() - p, closeRect.bottom() - p);
+            painter.drawLine(closeRect.left() + p, closeRect.bottom() - p, closeRect.right() - p, closeRect.top() + p);
+
+        } else {
+            // 普通模式：居中绘制文字
+            painter.drawText(rect(), Qt::AlignCenter, text());
+        }
+    }
+
+private:
+    bool m_isHovered = false;
+};
+// --- 内部类结束 ---
+
 
 TagWidget::TagWidget(QWidget *parent)
     : QWidget(parent)
@@ -15,13 +92,9 @@ TagWidget::TagWidget(QWidget *parent)
 void TagWidget::setupUI()
 {
     m_layout->setContentsMargins(0, 0, 0, 0);
-    m_layout->setSpacing(5);
+    m_layout->setSpacing(8);
     m_layout->setAlignment(Qt::AlignLeft);
-
-    // 设置固定高度
     setFixedHeight(40);
-
-    // 允许换行
     m_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 }
 
@@ -71,14 +144,12 @@ void TagWidget::clearTags()
 QList<QVariantMap> TagWidget::getTags() const
 {
     QList<QVariantMap> tags;
-
     for (QPushButton *button : m_tagButtons) {
         QVariantMap tag;
         tag["name"] = button->text();
-        tag["color"] = button->property("color").toString();
+        tag["color"] = button->property("tagColor").value<QColor>().name();
         tags.append(tag);
     }
-
     return tags;
 }
 
@@ -94,10 +165,8 @@ bool TagWidget::hasTag(const QString &name) const
 
 QPushButton* TagWidget::createTagButton(const QString &name, const QString &color)
 {
-    QPushButton *button = new QPushButton(name, this);
-    button->setProperty("color", color);
+    TagButton *button = new TagButton(name, this);
 
-    // 查找预设颜色
     QString finalColor = color;
     for (const QVariantMap &tag : m_availableTags) {
         if (tag["name"].toString() == name) {
@@ -106,37 +175,13 @@ QPushButton* TagWidget::createTagButton(const QString &name, const QString &colo
         }
     }
 
-    // 如果没有指定颜色，生成一个
     if (finalColor == "#657896") {
         finalColor = generateColor(name);
     }
 
-    // 根据颜色亮度决定文字颜色
-    QColor bgColor(finalColor);
-    QString textColor = bgColor.lightness() > 128 ? "black" : "white";
-
-    QString style = QString(
-                        "QPushButton {"
-                        "    background-color: %1;"
-                        "    color: %2;"
-                        "    border: none;"
-                        "    border-radius: 12px;"
-                        "    padding: 4px 12px;"
-                        "    font-size: 11px;"
-                        "    font-weight: normal;"
-                        "}"
-                        "QPushButton:hover {"
-                        "    background-color: %3;"
-                        "}"
-                        ).arg(bgColor.name(),
-                             textColor,
-                             bgColor.lighter(120).name());
-
-    button->setStyleSheet(style);
+    button->setProperty("tagColor", QColor(finalColor));
+    button->setFixedSize(80, 26);
     button->setCursor(Qt::PointingHandCursor);
-    button->setFixedHeight(24);
-
-    // 设置工具提示
     button->setToolTip(QString("点击移除标签: %1").arg(name));
 
     connect(button, &QPushButton::clicked, this, &TagWidget::onTagButtonClicked);
@@ -154,7 +199,6 @@ void TagWidget::onTagButtonClicked()
 
 void TagWidget::updateLayout()
 {
-    // 强制更新布局
     m_layout->update();
     update();
 }
@@ -162,23 +206,31 @@ void TagWidget::updateLayout()
 void TagWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
-
-    // 如果需要，可以绘制背景
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 }
 
 QString TagWidget::generateColor(const QString &text)
 {
-    // 根据文本生成一致的颜色
+    // 预定义莫兰迪色盘 (与优先级/状态颜色协调)
+    static const QStringList palette = {
+        "#C96A6A", // 柔和砖红
+        "#D69E68", // 大地橙
+        "#7FA882", // 鼠尾草绿
+        "#8C949E", // 冷灰
+        "#7696B3", // 钢蓝
+        "#B48EAD", // 莫兰迪紫
+        "#88C0D0", // 北欧蓝
+        "#81A1C1", // 冰河蓝
+        "#BF616A", // 浆果红
+        "#EBCB8B"  // 麦穗黄
+    };
+
     QCryptographicHash hash(QCryptographicHash::Md5);
     hash.addData(text.toUtf8());
     QByteArray result = hash.result();
 
-    // 从hash中提取颜色分量
-    int r = static_cast<unsigned char>(result[0]) % 200 + 55;
-    int g = static_cast<unsigned char>(result[1]) % 200 + 55;
-    int b = static_cast<unsigned char>(result[2]) % 200 + 55;
-
-    return QColor(r, g, b).name();
+    // 使用哈希值的第一个字节作为索引，从色盘中取色
+    unsigned char index = static_cast<unsigned char>(result[0]);
+    return palette[index % palette.size()];
 }

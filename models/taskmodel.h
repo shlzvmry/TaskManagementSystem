@@ -58,6 +58,8 @@ public:
     bool restoreTask(int taskId);
     QVariantMap getTask(int taskId) const;
     bool permanentDeleteTask(int taskId);
+    // 排序接口
+    void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
 
     // 批量操作
     QList<QVariantMap> getAllTasks(bool includeDeleted = false) const;
@@ -93,6 +95,9 @@ private:
     QList<TaskItem> tasks;
     QSqlDatabase db;
     bool showingDeleted;
+
+    // 新增：标签处理辅助函数
+    QList<int> resolveTagIds(const QStringList &tagNames, const QStringList &tagColors);
 
     void loadTasks(bool includeDeleted = false);
     TaskItem loadTaskFromDb(int taskId) const;

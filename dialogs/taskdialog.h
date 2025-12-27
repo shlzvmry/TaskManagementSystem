@@ -49,6 +49,7 @@ private:
     PriorityWidget *m_priorityWidget;
     StatusWidget *m_statusWidget;
     TagWidget *m_tagWidget;
+    QWidget *m_existingTagsContainer;
 
     void setupUI();
     void setupConnections();

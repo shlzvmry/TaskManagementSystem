@@ -24,8 +24,9 @@ void StatusWidget::setupUI()
     for (int i = 0; i < 4; ++i) {
         QPushButton *button = new QPushButton(statusTexts[i], this);
         button->setCheckable(true);
-        button->setFixedSize(70, 30);
-        button->setProperty("status", i);
+
+        // 设置固定大小
+        button->setFixedSize(80, 32);
         button->setObjectName(QString("statusBtn_%1").arg(i));
 
         m_buttons[i] = button;
@@ -36,7 +37,6 @@ void StatusWidget::setupUI()
     // 默认选择"待办"状态
     m_buttons[0]->setChecked(true);
 
-    // 连接信号
     connect(m_buttonGroup, &QButtonGroup::idClicked,
             this, &StatusWidget::onButtonClicked);
 }

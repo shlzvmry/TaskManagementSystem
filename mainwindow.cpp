@@ -243,9 +243,11 @@ void MainWindow::setupTaskTableView()
     taskTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
     taskTableView->setSelectionMode(QAbstractItemView::SingleSelection);
     taskTableView->setAlternatingRowColors(true);
-    taskTableView->setSortingEnabled(true);
+    taskTableView->setSortingEnabled(true); // 确保开启排序
     taskTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    taskTableView->sortByColumn(0, Qt::AscendingOrder);
+
+    // 默认按截止时间排序
+    taskTableView->sortByColumn(5, Qt::AscendingOrder);
 
     // 设置列宽
     taskTableView->horizontalHeader()->setStretchLastSection(true);
@@ -254,8 +256,9 @@ void MainWindow::setupTaskTableView()
     taskTableView->setColumnWidth(2, 100);  // 分类
     taskTableView->setColumnWidth(3, 80);   // 优先级
     taskTableView->setColumnWidth(4, 80);   // 状态
-    taskTableView->setColumnWidth(5, 150);  // 截止时间
-    taskTableView->setColumnWidth(6, 150);  // 创建时间
+    taskTableView->setColumnWidth(5, 180);  // 截止时间
+    taskTableView->setColumnWidth(6, 180);  // 提醒时间
+    taskTableView->setColumnWidth(7, 140);  // 创建时间
 
     // 设置表头
     QHeaderView *header = taskTableView->horizontalHeader();
@@ -594,38 +597,41 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 
 void MainWindow::loadStyleSheet()
 {
-    // 加载主窗口样式
-    QString absolutePath = "D:/Qt/TaskManagementSystem/styles/mainwindow.qss";
-    QFile mainFile(absolutePath);
-
     QString styleSheet;
+    // 定义基础路径，方便统一管理
+    QString basePath = "D:/Qt/TaskManagementSystem/styles/";
 
+    // 1. 加载主窗口样式
+    QString mainPath = basePath + "mainwindow.qss";
+    QFile mainFile(mainPath);
     if (mainFile.open(QFile::ReadOnly | QFile::Text)) {
-        styleSheet = QLatin1String(mainFile.readAll());
+        styleSheet += QLatin1String(mainFile.readAll());
         mainFile.close();
-        qDebug() << "主窗口样式从绝对路径加载：" << absolutePath;
     } else {
-        qDebug() << "无法从绝对路径加载主窗口样式：" << absolutePath;
+        qDebug() << "主窗口样式加载失败：" << mainPath;
     }
 
-    // 加载对话框样式
-    QFile dialogFile("styles/dialog.qss");
+    // 2. 加载对话框样式
+    QString dialogPath = basePath + "dialog.qss";
+    QFile dialogFile(dialogPath);
     if (dialogFile.open(QFile::ReadOnly | QFile::Text)) {
         styleSheet += "\n" + QLatin1String(dialogFile.readAll());
         dialogFile.close();
-        qDebug() << "对话框样式加载成功";
     } else {
-        qDebug() << "对话框样式加载失败：" << dialogFile.errorString();
+        qDebug() << "对话框样式加载失败：" << dialogPath;
     }
 
-    // 加载控件样式
-    QFile widgetFile("styles/widget.qss");
+    // 3. 加载控件样式
+    QString widgetPath = basePath + "widget.qss";
+    QFile widgetFile(widgetPath);
     if (widgetFile.open(QFile::ReadOnly | QFile::Text)) {
         styleSheet += "\n" + QLatin1String(widgetFile.readAll());
         widgetFile.close();
-        qDebug() << "控件样式加载成功";
+    } else {
+        qDebug() << "控件样式加载失败：" << widgetPath;
     }
 
+    // 应用样式表
     if (!styleSheet.isEmpty()) {
         qApp->setStyleSheet("");
         qApp->setStyleSheet(styleSheet);

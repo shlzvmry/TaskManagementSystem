@@ -48,8 +48,6 @@ HEADERS += \
 FORMS += \
     dialogs/recyclebindialog.ui \
     dialogs/taskdialog.ui \
-    dialogs/recyclebindialog.ui \
-
 
 #控件模块
 SOURCES += \
@@ -67,8 +65,7 @@ HEADERS += \
 #样式表文件
 DISTFILES += \
     styles/mainwindow.qss \
-    styles/dialog.qss \
-    styles/widget.qss
+    styles/widget.qss \
 
 # 包含路径
 INCLUDEPATH += \

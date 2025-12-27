@@ -11,6 +11,8 @@
 #include <QSqlError>
 #include <QDebug>
 #include <QOverload>
+#include <QScrollArea>
+#include <QHBoxLayout>
 
 TaskDialog::TaskDialog(QWidget *parent)
     : QDialog(parent)
@@ -20,6 +22,7 @@ TaskDialog::TaskDialog(QWidget *parent)
     , m_priorityWidget(nullptr)
     , m_statusWidget(nullptr)
     , m_tagWidget(nullptr)
+    , m_existingTagsContainer(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle("创建新任务");
@@ -35,6 +38,7 @@ TaskDialog::TaskDialog(const QVariantMap &taskData, QWidget *parent)
     , m_priorityWidget(nullptr)
     , m_statusWidget(nullptr)
     , m_tagWidget(nullptr)
+    , m_existingTagsContainer(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle(QString("编辑任务: %1").arg(taskData.value("title").toString()));
@@ -144,6 +148,34 @@ void TaskDialog::loadCategories()
 
 void TaskDialog::loadExistingTags()
 {
+    // 1. 清理旧的容器（如果有）
+    if (m_existingTagsContainer) {
+        m_existingTagsContainer->deleteLater();
+        m_existingTagsContainer = nullptr;
+    }
+
+    // 2. 创建滚动区域来放置标签按钮
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFixedHeight(50);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setStyleSheet("QScrollArea { background: transparent; border: none; } QWidget { background: transparent; }");
+
+    m_existingTagsContainer = new QWidget(scrollArea);
+    QHBoxLayout *containerLayout = new QHBoxLayout(m_existingTagsContainer);
+    containerLayout->setContentsMargins(0, 0, 0, 0);
+    containerLayout->setSpacing(8);
+    containerLayout->setAlignment(Qt::AlignLeft);
+
+    scrollArea->setWidget(m_existingTagsContainer);
+
+    // 将滚动区域添加到界面
+    QVBoxLayout *tagsLayout = qobject_cast<QVBoxLayout*>(ui->groupBoxTags->layout());
+    if (tagsLayout) {
+        tagsLayout->insertWidget(1, scrollArea);
+    }
+
+    // 3. 从数据库加载标签并创建按钮
     QSqlQuery query(Database::instance().getDatabase());
     query.prepare("SELECT name, color FROM task_tags ORDER BY name");
 
@@ -155,6 +187,36 @@ void TaskDialog::loadExistingTags()
             if (m_tagWidget) {
                 m_tagWidget->addAvailableTag(name, color);
             }
+
+            QPushButton *tagBtn = new QPushButton(name, m_existingTagsContainer);
+            tagBtn->setCursor(Qt::PointingHandCursor);
+            tagBtn->setObjectName("existingTagBtn");
+            tagBtn->setFixedSize(72, 15);
+
+            // 修改圆角为 4px，与 TagWidget 和 PriorityWidget 保持一致
+            QString dynamicStyle = QString(
+                                       "QPushButton#existingTagBtn {"
+                                       "  background-color: transparent;"
+                                       "  color: #CCCCCC;"
+                                       "  border: 1px solid %1;"
+                                       "  border-radius: 4px;"
+                                       "}"
+                                       "QPushButton#existingTagBtn:hover {"
+                                       "  background-color: %1;"
+                                       "  color: white;"
+                                       "  border: 1px solid %1;"
+                                       "}"
+                                       ).arg(color);
+
+            tagBtn->setStyleSheet(dynamicStyle);
+
+            connect(tagBtn, &QPushButton::clicked, this, [this, name, color]() {
+                if (m_tagWidget) {
+                    m_tagWidget->addTag(name, color);
+                }
+            });
+
+            containerLayout->addWidget(tagBtn);
         }
     }
 }

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>700</height>
+    <width>500</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -170,6 +170,9 @@
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <item>
        <widget class="QTextEdit" name="textEditDescription">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="placeholderText">
          <string>请输入任务详细描述...</string>
         </property>
@@ -181,10 +184,10 @@
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Save</set>
+      <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Save</set>
      </property>
     </widget>
    </item>

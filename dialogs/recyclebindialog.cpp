@@ -34,32 +34,38 @@ void RecycleBinDialog::setupUI()
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tableWidget->setAlternatingRowColors(true);
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    ui->tableWidget->setSortingEnabled(false);
+    ui->tableWidget->setSortingEnabled(true);
     ui->tableWidget->setShowGrid(true);
     ui->tableWidget->setGridStyle(Qt::SolidLine);
 
     // 设置表格头
     QHeaderView *horizontalHeader = ui->tableWidget->horizontalHeader();
-    horizontalHeader->setStyleSheet("");
-    horizontalHeader->setStretchLastSection(false);
+    horizontalHeader->setStretchLastSection(true);
     horizontalHeader->setSectionResizeMode(QHeaderView::Interactive);
+    horizontalHeader->setDefaultAlignment(Qt::AlignCenter);
+    horizontalHeader->setMinimumHeight(40);
 
-    ui->tableWidget->setColumnWidth(0, 60);   // ID
-    ui->tableWidget->setColumnWidth(1, 250);  // 标题（增加宽度）
-    ui->tableWidget->setColumnWidth(2, 100);  // 分类
-    ui->tableWidget->setColumnWidth(3, 80);  // 优先级
-    ui->tableWidget->setColumnWidth(4, 80);  // 状态
-    ui->tableWidget->setColumnWidth(5, 150);  // 删除时间
-    ui->tableWidget->setColumnWidth(6, 150);  // 创建时间
+    // 设置列数
+    ui->tableWidget->setColumnCount(8);
+
+    ui->tableWidget->setColumnWidth(0, 40);   // ID
+    ui->tableWidget->setColumnWidth(1, 200);  // 标题
+    ui->tableWidget->setColumnWidth(2, 80);  // 分类
+    ui->tableWidget->setColumnWidth(3, 65);   // 优先级
+    ui->tableWidget->setColumnWidth(4, 65);   // 状态
+    ui->tableWidget->setColumnWidth(5, 130);  // 删除时间
+    ui->tableWidget->setColumnWidth(6, 130);  // 提醒时间
+    ui->tableWidget->setColumnWidth(7, 130);  // 创建时间
 
     // 设置表头文本
-    QStringList headers = {"ID", "标题", "分类", "优先级", "状态", "删除时间", "创建时间"};
+    QStringList headers = {"ID", "标题", "分类", "优先级", "状态", "删除时间", "提醒时间", "创建时间"};
     ui->tableWidget->setHorizontalHeaderLabels(headers);
+
+    // 垂直表头设置
     ui->tableWidget->verticalHeader()->setVisible(false);
-    ui->tableWidget->verticalHeader()->setDefaultSectionSize(30);
+    ui->tableWidget->verticalHeader()->setDefaultSectionSize(35);
     ui->tableWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     ui->tableWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    ui->tableWidget->verticalHeader()->setDefaultSectionSize(30);
 }
 
 void RecycleBinDialog::setupConnections()
@@ -187,12 +193,19 @@ void RecycleBinDialog::refreshDeletedTasks()
             deletedItem->setTextAlignment(Qt::AlignCenter);
             ui->tableWidget->setItem(row, 5, deletedItem);
 
+            // 提醒时间
+            QDateTime remindTime = task["remind_time"].toDateTime();
+            QTableWidgetItem *remindItem = new QTableWidgetItem(
+                remindTime.isValid() ? remindTime.toString("yyyy-MM-dd HH:mm") : "-");
+            remindItem->setTextAlignment(Qt::AlignCenter);
+            ui->tableWidget->setItem(row, 6, remindItem);
+
             // 创建时间
             QDateTime createdTime = task["created_at"].toDateTime();
             QTableWidgetItem *createdItem = new QTableWidgetItem(
                 createdTime.isValid() ? createdTime.toString("yyyy-MM-dd HH:mm") : "未知时间");
             createdItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 6, createdItem);
+            ui->tableWidget->setItem(row, 7, createdItem);
 
             row++;
 

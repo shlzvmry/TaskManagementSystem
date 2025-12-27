@@ -24,8 +24,7 @@ void PriorityWidget::setupUI()
     for (int i = 0; i < 4; ++i) {
         QPushButton *button = new QPushButton(priorityTexts[i], this);
         button->setCheckable(true);
-        button->setFixedSize(60, 30);
-        button->setProperty("priority", i);
+        button->setFixedSize(70, 32);
         button->setObjectName(QString("priorityBtn_%1").arg(i));
 
         m_buttons[i] = button;
@@ -36,7 +35,6 @@ void PriorityWidget::setupUI()
     // 默认选择"普通"优先级
     m_buttons[2]->setChecked(true);
 
-    // 连接信号
     connect(m_buttonGroup, &QButtonGroup::idClicked,
             this, &PriorityWidget::onButtonClicked);
 }

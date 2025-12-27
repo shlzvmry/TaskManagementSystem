@@ -37,7 +37,7 @@ int TaskModel::rowCount(const QModelIndex &parent) const
 int TaskModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return 7; // ID, 标题, 分类, 优先级, 状态, 截止时间, 创建时间
+    return 8; // ID, 标题, 分类, 优先级, 状态, 截止时间, 提醒时间, 创建时间
 }
 
 QVariant TaskModel::data(const QModelIndex &index, int role) const
@@ -55,8 +55,9 @@ QVariant TaskModel::data(const QModelIndex &index, int role) const
         case 2: return task.categoryName;
         case 3: return task.priorityText();
         case 4: return task.statusText();
-        case 5: return task.deadline.isValid() ? task.deadline.toString("yyyy-MM-dd HH:mm") : "未设置";
-        case 6: return task.createdAt.toString("yyyy-MM-dd HH:mm");
+        case 5: return task.deadline.isValid() ? task.deadline.toString("yyyy-MM-dd HH:mm") : "-";
+        case 6: return task.remindTime.isValid() ? task.remindTime.toString("yyyy-MM-dd HH:mm") : "-"; // 新增
+        case 7: return task.createdAt.toString("yyyy-MM-dd HH:mm");
         default: return QVariant();
         }
 
@@ -115,12 +116,68 @@ QVariant TaskModel::headerData(int section, Qt::Orientation orientation, int rol
         case 3: return "优先级";
         case 4: return "状态";
         case 5: return "截止时间";
-        case 6: return "创建时间";
+        case 6: return "提醒时间";
+        case 7: return "创建时间";
         default: return QVariant();
         }
     }
 
     return QVariant();
+}
+
+// 实现排序功能
+void TaskModel::sort(int column, Qt::SortOrder order)
+{
+    emit layoutAboutToBeChanged();
+
+    std::sort(tasks.begin(), tasks.end(), [column, order](const TaskItem &a, const TaskItem &b) {
+        bool asc = (order == Qt::AscendingOrder);
+        switch (column) {
+        case 0: return asc ? a.id < b.id : a.id > b.id;
+        case 1: return asc ? a.title < b.title : a.title > b.title;
+        case 2: return asc ? a.categoryName < b.categoryName : a.categoryName > b.categoryName;
+        case 3: return asc ? a.priority < b.priority : a.priority > b.priority;
+        case 4: return asc ? a.status < b.status : a.status > b.status;
+        case 5: return asc ? a.deadline < b.deadline : a.deadline > b.deadline;
+        case 6: return asc ? a.remindTime < b.remindTime : a.remindTime > b.remindTime;
+        case 7: return asc ? a.createdAt < b.createdAt : a.createdAt > b.createdAt;
+        default: return asc ? a.id < b.id : a.id > b.id;
+        }
+    });
+
+    emit layoutChanged();
+}
+
+// 标签解析辅助函数
+QList<int> TaskModel::resolveTagIds(const QStringList &tagNames, const QStringList &tagColors)
+{
+    QList<int> tagIds;
+    QSqlDatabase db = getDbConnection();
+    if (!db.isOpen()) return tagIds;
+
+    for (int i = 0; i < tagNames.size(); ++i) {
+        QString name = tagNames[i];
+        QString color = (i < tagColors.size()) ? tagColors[i] : "#657896";
+
+        // 1. 尝试查找现有标签
+        QSqlQuery checkQuery(db);
+        checkQuery.prepare("SELECT id FROM task_tags WHERE name = ?");
+        checkQuery.addBindValue(name);
+
+        if (checkQuery.exec() && checkQuery.next()) {
+            tagIds.append(checkQuery.value(0).toInt());
+        } else {
+            // 2. 如果不存在，创建新标签
+            QSqlQuery insertQuery(db);
+            insertQuery.prepare("INSERT INTO task_tags (name, color) VALUES (?, ?)");
+            insertQuery.addBindValue(name);
+            insertQuery.addBindValue(color);
+            if (insertQuery.exec()) {
+                tagIds.append(insertQuery.lastInsertId().toInt());
+            }
+        }
+    }
+    return tagIds;
 }
 
 Qt::ItemFlags TaskModel::flags(const QModelIndex &index) const
@@ -292,6 +349,11 @@ bool TaskModel::addTask(const QVariantMap &taskData)
     task.createdAt = getCurrentTimestamp();
     task.updatedAt = task.createdAt;
 
+    // 解析标签名称为ID
+    QStringList tagNames = taskData.value("tag_names").toStringList();
+    QStringList tagColors = taskData.value("tag_colors").toStringList();
+    task.tagIds = resolveTagIds(tagNames, tagColors);
+
     QSqlQuery query(db);
     QString sql = QString(
         "INSERT INTO tasks (title, description, category_id, priority, "
@@ -323,18 +385,13 @@ bool TaskModel::addTask(const QVariantMap &taskData)
     }
 
     task.id = query.lastInsertId().toInt();
-    qDebug() << "任务添加成功! 新任务ID:" << task.id;
 
-    // 保存标签
+    // 保存标签关联
     if (!task.tagIds.isEmpty()) {
-        qDebug() << "需要保存的标签ID:" << task.tagIds;
         updateTaskTags(task.id, task.tagIds);
     }
 
-    // 刷新显示
     refresh();
-    qDebug() << "模型已刷新，当前任务数:" << tasks.size();
-
     emit taskAdded(task.id);
     return true;
 }
@@ -354,6 +411,11 @@ bool TaskModel::updateTask(int taskId, const QVariantMap &taskData)
     if (task.status == 2 && !task.completedAt.isValid()) {
         task.completedAt = QDateTime::currentDateTime();
     }
+
+    // 解析标签名称为ID
+    QStringList tagNames = taskData.value("tag_names").toStringList();
+    QStringList tagColors = taskData.value("tag_colors").toStringList();
+    task.tagIds = resolveTagIds(tagNames, tagColors);
 
     QSqlQuery query(db);
     query.prepare("UPDATE tasks SET title = ?, description = ?, category_id = ?, "
@@ -380,15 +442,14 @@ bool TaskModel::updateTask(int taskId, const QVariantMap &taskData)
         return false;
     }
 
-    // 更新标签
-    if (!task.tagIds.isEmpty()) {
-        // 先删除旧标签
-        QSqlQuery deleteQuery(db);
-        deleteQuery.prepare("DELETE FROM task_tag_relations WHERE task_id = ?");
-        deleteQuery.addBindValue(taskId);
-        deleteQuery.exec();
+    // 更新标签关联
+    QSqlQuery deleteQuery(db);
+    deleteQuery.prepare("DELETE FROM task_tag_relations WHERE task_id = ?");
+    deleteQuery.addBindValue(taskId);
+    deleteQuery.exec();
 
-        // 添加新标签
+    // 添加新标签
+    if (!task.tagIds.isEmpty()) {
         updateTaskTags(taskId, task.tagIds);
     }
 
