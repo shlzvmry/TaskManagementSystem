@@ -13,6 +13,8 @@
 #include <QOverload>
 #include <QScrollArea>
 #include <QHBoxLayout>
+#include <QScrollBar>
+#include <QWheelEvent>
 
 TaskDialog::TaskDialog(QWidget *parent)
     : QDialog(parent)
@@ -69,6 +71,11 @@ void TaskDialog::setupUI()
     m_tagWidget = new TagWidget(this);
     ui->widgetTags->layout()->addWidget(m_tagWidget);
 
+    // 安装事件过滤器以支持横向滚动
+    ui->scrollAreaSelectedTags->installEventFilter(this);
+    ui->scrollAreaExistingTags->installEventFilter(this);
+    ui->scrollAreaWidgetContentsExisting->layout()->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
     // 初始化时间控件
     initDateTimeEdits();
 
@@ -88,10 +95,6 @@ void TaskDialog::setupConnections()
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &TaskDialog::onSaveClicked);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &TaskDialog::onCancelClicked);
     connect(ui->pushButtonAddTag, &QPushButton::clicked, this, &TaskDialog::onAddTagClicked);
-
-    if (m_tagWidget) {
-        connect(m_tagWidget, &TagWidget::tagRemoved, this, &TaskDialog::onTagRemoved);
-    }
 }
 
 void TaskDialog::initDateTimeEdits()
@@ -133,7 +136,7 @@ void TaskDialog::loadCategories()
             ui->comboBoxCategory->addItem(name, id);
             int index = ui->comboBoxCategory->count() - 1;
 
-            // 为分类项设置颜色（可选）
+            // 为分类项设置颜色
             QPixmap pixmap(16, 16);
             pixmap.fill(QColor(color));
             ui->comboBoxCategory->setItemIcon(index, QIcon(pixmap));
@@ -148,34 +151,19 @@ void TaskDialog::loadCategories()
 
 void TaskDialog::loadExistingTags()
 {
-    // 1. 清理旧的容器（如果有）
-    if (m_existingTagsContainer) {
-        m_existingTagsContainer->deleteLater();
-        m_existingTagsContainer = nullptr;
+    // 获取 UI 中定义的容器布局
+    QLayout *containerLayout = ui->scrollAreaWidgetContentsExisting->layout();
+
+    // 清除旧的按钮
+    QLayoutItem *item;
+    while ((item = containerLayout->takeAt(0)) != nullptr) {
+        if (item->widget()) {
+            item->widget()->deleteLater();
+        }
+        delete item;
     }
 
-    // 2. 创建滚动区域来放置标签按钮
-    QScrollArea *scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setFixedHeight(50);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-    scrollArea->setStyleSheet("QScrollArea { background: transparent; border: none; } QWidget { background: transparent; }");
-
-    m_existingTagsContainer = new QWidget(scrollArea);
-    QHBoxLayout *containerLayout = new QHBoxLayout(m_existingTagsContainer);
-    containerLayout->setContentsMargins(0, 0, 0, 0);
-    containerLayout->setSpacing(8);
-    containerLayout->setAlignment(Qt::AlignLeft);
-
-    scrollArea->setWidget(m_existingTagsContainer);
-
-    // 将滚动区域添加到界面
-    QVBoxLayout *tagsLayout = qobject_cast<QVBoxLayout*>(ui->groupBoxTags->layout());
-    if (tagsLayout) {
-        tagsLayout->insertWidget(1, scrollArea);
-    }
-
-    // 3. 从数据库加载标签并创建按钮
+    //从数据库加载标签并创建按钮
     QSqlQuery query(Database::instance().getDatabase());
     query.prepare("SELECT name, color FROM task_tags ORDER BY name");
 
@@ -188,37 +176,12 @@ void TaskDialog::loadExistingTags()
                 m_tagWidget->addAvailableTag(name, color);
             }
 
-            QPushButton *tagBtn = new QPushButton(name, m_existingTagsContainer);
-            tagBtn->setCursor(Qt::PointingHandCursor);
-            tagBtn->setObjectName("existingTagBtn");
-            tagBtn->setFixedSize(72, 15);
-
-            // 修改圆角为 4px，与 TagWidget 和 PriorityWidget 保持一致
-            QString dynamicStyle = QString(
-                                       "QPushButton#existingTagBtn {"
-                                       "  background-color: transparent;"
-                                       "  color: #CCCCCC;"
-                                       "  border: 1px solid %1;"
-                                       "  border-radius: 4px;"
-                                       "}"
-                                       "QPushButton#existingTagBtn:hover {"
-                                       "  background-color: %1;"
-                                       "  color: white;"
-                                       "  border: 1px solid %1;"
-                                       "}"
-                                       ).arg(color);
-
-            tagBtn->setStyleSheet(dynamicStyle);
-
-            connect(tagBtn, &QPushButton::clicked, this, [this, name, color]() {
-                if (m_tagWidget) {
-                    m_tagWidget->addTag(name, color);
-                }
-            });
-
-            containerLayout->addWidget(tagBtn);
+            addExistingTagButton(name, color);
         }
     }
+
+    // 添加弹簧以保持左对齐
+    static_cast<QHBoxLayout*>(containerLayout)->addStretch();
 }
 
 void TaskDialog::populateData(const QVariantMap &taskData)
@@ -378,23 +341,39 @@ void TaskDialog::onAddTagClicked()
         return;
     }
 
-    // 支持逗号分隔的多个标签 - Qt6使用Qt::SplitBehavior
+    // 支持逗号分隔的多个标签
     QStringList newTags = newTagText.split(",", Qt::SkipEmptyParts);
 
     for (QString &tag : newTags) {
         tag = tag.trimmed();
-        if (!tag.isEmpty() && m_tagWidget) {
-            // 使用主题色作为新标签颜色
-            m_tagWidget->addTag(tag, "#657896");
+
+        // 限制标签长度
+        if (tag.length() > 6) {
+            QMessageBox::warning(this, "格式错误", QString("标签 '%1' 过长，请限制在6个字以内").arg(tag));
+            continue;
+        }
+
+        if (!tag.isEmpty()) {
+            QString color = TagWidget::generateColor(tag);
+            if (m_tagWidget) {
+                m_tagWidget->addTag(tag, color);
+            }
+            if (Database::instance().addTag(tag, color)) {
+                QLayout *layout = ui->scrollAreaWidgetContentsExisting->layout();
+                QLayoutItem *spacer = layout->takeAt(layout->count() - 1);
+
+                addExistingTagButton(tag, color);
+
+                if (spacer) {
+                    layout->addItem(spacer);
+                } else {
+                    static_cast<QHBoxLayout*>(layout)->addStretch();
+                }
+            }
         }
     }
 
     ui->lineEditNewTag->clear();
-}
-
-void TaskDialog::onTagRemoved(const QString &tagName)
-{
-    qDebug() << "标签被移除:" << tagName;
 }
 
 void TaskDialog::showEvent(QShowEvent *event)
@@ -430,4 +409,65 @@ QVariantMap TaskDialog::editTask(const QVariantMap &taskData, QWidget *parent)
     }
 
     return QVariantMap();
+}
+
+bool TaskDialog::eventFilter(QObject *obj, QEvent *event)
+{
+    if (event->type() == QEvent::Wheel) {
+        QScrollArea *scrollArea = qobject_cast<QScrollArea*>(obj);
+        if (scrollArea && (scrollArea == ui->scrollAreaSelectedTags || scrollArea == ui->scrollAreaExistingTags)) {
+            QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+
+            int delta = wheelEvent->angleDelta().y();
+
+            if (delta != 0) {
+                QScrollBar *bar = scrollArea->horizontalScrollBar();
+                bar->setValue(bar->value() - delta);
+                return true;
+            }
+        }
+    }
+    return QDialog::eventFilter(obj, event);
+}
+
+void TaskDialog::addExistingTagButton(const QString &name, const QString &color)
+{
+    QPushButton *tagBtn = new QPushButton(name, ui->scrollAreaWidgetContentsExisting);
+    tagBtn->setCursor(Qt::PointingHandCursor);
+    tagBtn->setObjectName("existingTagBtn");
+
+    tagBtn->setFixedHeight(24);
+
+    QFont font = tagBtn->font();
+    if (font.pointSize() < 9) font.setPointSize(9);
+
+    QFontMetrics fm(font);
+    int textWidth = fm.horizontalAdvance(name);
+    int padding = 24;
+    tagBtn->setFixedWidth(textWidth + padding);
+
+    QString dynamicStyle = QString(
+                               "QPushButton#existingTagBtn {"
+                               "  background-color: transparent;"
+                               "  color: #CCCCCC;"
+                               "  border: 1px solid %1;"
+                               "  border-radius: 4px;"
+                               "  padding: 0px 4px;"
+                               "}"
+                               "QPushButton#existingTagBtn:hover {"
+                               "  background-color: %1;"
+                               "  color: white;"
+                               "  border: 1px solid %1;"
+                               "}"
+                               ).arg(color);
+
+    tagBtn->setStyleSheet(dynamicStyle);
+
+    connect(tagBtn, &QPushButton::clicked, this, [this, name, color]() {
+        if (m_tagWidget) {
+            m_tagWidget->addTag(name, color);
+        }
+    });
+
+    ui->scrollAreaWidgetContentsExisting->layout()->addWidget(tagBtn);
 }

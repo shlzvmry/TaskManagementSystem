@@ -140,7 +140,6 @@ QStatusBar {
     font-style: italic;
     padding: 5px;
     border-top: 1px solid #3d3d3d;
-    margin-top: 10px;
 }
 
 /* 工具栏布局样式 */

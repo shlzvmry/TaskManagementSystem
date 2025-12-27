@@ -32,12 +32,12 @@ public:
 
 protected:
     void showEvent(QShowEvent *event) override;
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
     void onSaveClicked();
     void onCancelClicked();
     void onAddTagClicked();
-    void onTagRemoved(const QString &tagName);
     void loadCategories();
     void loadExistingTags();
 
@@ -57,6 +57,7 @@ private:
     void populateData(const QVariantMap &taskData);
     bool validateInput();
     QList<QVariantMap> getSelectedTags() const;
+    void addExistingTagButton(const QString &name, const QString &color);
 };
 
 #endif // TASKDIALOG_H

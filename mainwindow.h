@@ -47,6 +47,9 @@ private slots:
     void onTaskRestored(int taskId);
     void onTaskPermanentlyDeleted(int taskId);
 
+    //标签管理
+    void onTagManagerClicked();
+
 private:
     // UI组件
     QSystemTrayIcon *trayIcon;
