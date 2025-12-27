@@ -11,11 +11,13 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    dialogs/tagmanagerdialog.cpp \
     main.cpp \
     mainwindow.cpp \
     models/taskitem.cpp
 
 HEADERS += \
+    dialogs/tagmanagerdialog.h \
     mainwindow.h \
     models/taskitem.h\
 
@@ -47,6 +49,7 @@ HEADERS += \
 
 FORMS += \
     dialogs/recyclebindialog.ui \
+    dialogs/tagmanagerdialog.ui \
     dialogs/taskdialog.ui \
 
 #控件模块

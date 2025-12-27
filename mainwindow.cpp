@@ -5,6 +5,7 @@
 #include "models/inspirationmodel.h"
 #include "dialogs/taskdialog.h"
 #include "dialogs/recyclebindialog.h"
+#include "dialogs/tagmanagerdialog.h"
 
 #include <QApplication>
 #include <QScreen>
@@ -125,8 +126,8 @@ void MainWindow::setupUI()
 
     // 创建主布局
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setContentsMargins(10, 10, 10, 10);
-    mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(10, 10, 10, 0);
+    mainLayout->setSpacing(0);
 
     // 创建标题栏
     QLabel *titleLabel = new QLabel("个人工作与任务管理系统", centralWidget);
@@ -219,6 +220,11 @@ void MainWindow::createTaskTab()
     QPushButton *kanbanViewBtn = new QPushButton("看板视图", taskTab);
     QPushButton *calendarViewBtn = new QPushButton("日历视图", taskTab);
 
+    // 新增：标签管理按钮
+    QPushButton *tagManagerBtn = new QPushButton("标签管理", taskTab);
+    tagManagerBtn->setObjectName("tagManagerBtn");
+    tagManagerBtn->setIcon(QIcon(":/icons/edit_icon.png")); // 复用编辑图标
+
     listViewBtn->setObjectName("listViewBtn");
     kanbanViewBtn->setObjectName("kanbanViewBtn");
     calendarViewBtn->setObjectName("calendarViewBtn");
@@ -227,6 +233,7 @@ void MainWindow::createTaskTab()
     viewLayout->addWidget(kanbanViewBtn);
     viewLayout->addWidget(calendarViewBtn);
     viewLayout->addStretch();
+    viewLayout->addWidget(tagManagerBtn); // 放在最右侧
 
     layout->addLayout(toolbarLayout);
     layout->addWidget(taskTableView, 1);
@@ -387,6 +394,11 @@ void MainWindow::setupConnections()
         connect(recycleBinBtn, &QPushButton::clicked, this, &MainWindow::onRecycleBinClicked);
     }
 
+    QPushButton *tagManagerBtn = findChild<QPushButton*>("tagManagerBtn");
+    if (tagManagerBtn) {
+        connect(tagManagerBtn, &QPushButton::clicked, this, &MainWindow::onTagManagerClicked);
+    }
+
     new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R), this, SLOT(onRecycleBinClicked()));
 
     // 连接表格双击事件
@@ -537,6 +549,17 @@ void MainWindow::onRefreshTasksClicked()
     if (taskModel) {
         taskModel->refresh();
         updateStatusBar("任务列表已刷新");
+    }
+}
+
+void MainWindow::onTagManagerClicked()
+{
+    TagManagerDialog dialog(this);
+    dialog.exec();
+
+    // 标签可能被修改，刷新任务列表以更新显示
+    if (taskModel) {
+        taskModel->refresh();
     }
 }
 

@@ -204,6 +204,78 @@ bool Database::addTag(const QString &name, const QString &color)
     return executePreparedQuery(query);
 }
 
+bool Database::deleteTag(int tagId)
+{
+    if (!db.isOpen()) return false;
+
+    db.transaction();
+
+    // 1. 删除关联关系
+    QSqlQuery deleteRelationQuery(db);
+    deleteRelationQuery.prepare("DELETE FROM task_tag_relations WHERE tag_id = ?");
+    deleteRelationQuery.addBindValue(tagId);
+
+    if (!deleteRelationQuery.exec()) {
+        qDebug() << "删除标签关联失败:" << deleteRelationQuery.lastError().text();
+        db.rollback();
+        return false;
+    }
+
+    // 2. 删除标签本身
+    QSqlQuery deleteTagQuery(db);
+    deleteTagQuery.prepare("DELETE FROM task_tags WHERE id = ?");
+    deleteTagQuery.addBindValue(tagId);
+
+    if (!deleteTagQuery.exec()) {
+        qDebug() << "删除标签失败:" << deleteTagQuery.lastError().text();
+        db.rollback();
+        return false;
+    }
+
+    return db.commit();
+}
+
+bool Database::removeTaskTagRelation(int taskId, int tagId)
+{
+    if (!db.isOpen()) return false;
+
+    QSqlQuery query(db);
+    query.prepare("DELETE FROM task_tag_relations WHERE task_id = ? AND tag_id = ?");
+    query.addBindValue(taskId);
+    query.addBindValue(tagId);
+
+    if (!query.exec()) {
+        qDebug() << "解除标签关联失败:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+QList<QVariantMap> Database::getTasksByTagId(int tagId)
+{
+    QList<QVariantMap> tasks;
+    if (!db.isOpen()) return tasks;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT t.id, t.title, c.name as category_name "
+                  "FROM tasks t "
+                  "JOIN task_tag_relations r ON t.id = r.task_id "
+                  "LEFT JOIN task_categories c ON t.category_id = c.id "
+                  "WHERE r.tag_id = ? AND t.is_deleted = 0");
+    query.addBindValue(tagId);
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap task;
+            task["id"] = query.value("id");
+            task["title"] = query.value("title");
+            task["category_name"] = query.value("category_name");
+            tasks.append(task);
+        }
+    }
+    return tasks;
+}
+
 bool Database::beginTransaction()
 {
     if (!db.isOpen()) {

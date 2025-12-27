@@ -6,7 +6,7 @@
 #include <QCryptographicHash>
 #include <QStyleOptionButton>
 
-// --- 内部类：自定义标签按钮 ---
+// 自定义标签按钮
 class TagButton : public QPushButton {
 public:
     TagButton(const QString &text, QWidget *parent = nullptr) : QPushButton(text, parent) {
@@ -32,55 +32,28 @@ protected:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        // 1. 获取背景色
         QColor bgColor = property("tagColor").value<QColor>();
         if (!bgColor.isValid()) bgColor = QColor("#657896");
 
-        // 悬停时背景稍微变暗
         if (m_isHovered) {
-            bgColor = bgColor.darker(110);
+            bgColor = QColor("#FF6B6B");
         }
 
-        // 2. 绘制圆角背景 - 修改为 4px 圆角，与优先级按钮一致
         painter.setPen(Qt::NoPen);
         painter.setBrush(bgColor);
         painter.drawRoundedRect(rect(), 4, 4);
 
-        // 3. 绘制文字或删除图标
         painter.setPen(Qt::white);
         QFont font = painter.font();
         font.setPointSize(10);
         painter.setFont(font);
 
-        if (m_isHovered) {
-            // 悬停模式：绘制 "文字" 和 右上角的 "×"
-            QRect textRect = rect().adjusted(0, 0, -10, 0);
-            painter.drawText(textRect, Qt::AlignCenter, text());
-
-            // 绘制右上角小叉号
-            int iconSize = 14;
-            int margin = 4;
-            QRect closeRect(width() - iconSize - margin, margin, iconSize, iconSize);
-
-            painter.setBrush(QColor(255, 255, 255, 60));
-            painter.drawEllipse(closeRect);
-
-            painter.setPen(QPen(Qt::white, 1.5));
-            int p = 4;
-            painter.drawLine(closeRect.left() + p, closeRect.top() + p, closeRect.right() - p, closeRect.bottom() - p);
-            painter.drawLine(closeRect.left() + p, closeRect.bottom() - p, closeRect.right() - p, closeRect.top() + p);
-
-        } else {
-            // 普通模式：居中绘制文字
-            painter.drawText(rect(), Qt::AlignCenter, text());
-        }
+        painter.drawText(rect(), Qt::AlignCenter, text());
     }
 
 private:
     bool m_isHovered = false;
 };
-// --- 内部类结束 ---
-
 
 TagWidget::TagWidget(QWidget *parent)
     : QWidget(parent)
@@ -93,9 +66,8 @@ void TagWidget::setupUI()
 {
     m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(8);
-    m_layout->setAlignment(Qt::AlignLeft);
-    setFixedHeight(40);
-    m_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
+    m_layout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter); // 增加垂直居中
+    setFixedHeight(30);
 }
 
 void TagWidget::addTag(const QString &name, const QString &color)
@@ -180,7 +152,15 @@ QPushButton* TagWidget::createTagButton(const QString &name, const QString &colo
     }
 
     button->setProperty("tagColor", QColor(finalColor));
-    button->setFixedSize(80, 26);
+    button->setFixedHeight(26);
+
+    QFont font = button->font();
+    font.setPointSize(10);
+    QFontMetrics fm(font);
+    int textWidth = fm.horizontalAdvance(name);
+    int padding = 24;
+    button->setFixedWidth(textWidth + padding);
+
     button->setCursor(Qt::PointingHandCursor);
     button->setToolTip(QString("点击移除标签: %1").arg(name));
 
@@ -212,7 +192,7 @@ void TagWidget::paintEvent(QPaintEvent *event)
 
 QString TagWidget::generateColor(const QString &text)
 {
-    // 预定义莫兰迪色盘 (与优先级/状态颜色协调)
+    // 预定义莫兰迪色盘
     static const QStringList palette = {
         "#C96A6A", // 柔和砖红
         "#D69E68", // 大地橙
