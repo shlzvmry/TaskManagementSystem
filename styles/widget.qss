@@ -1,119 +1,84 @@
 /* 优先级控件样式 */
 PriorityWidget QPushButton {
-    background-color: #657896;
     color: white;
-    border: none;
+    border: 2px solid transparent;
     border-radius: 4px;
     font-size: 11px;
     font-weight: normal;
-}
-
-PriorityWidget QPushButton[priority="0"] {
-    background-color: #FF4444;
-}
-
-PriorityWidget QPushButton[priority="1"] {
-    background-color: #FF9900;
-}
-
-PriorityWidget QPushButton[priority="2"] {
-    background-color: #4CAF50;
-}
-
-PriorityWidget QPushButton[priority="3"] {
-    background-color: #9E9E9E;
-}
-
-PriorityWidget QPushButton:hover {
-    background-color: #4a5a6d;
+    padding: 2px 4px;
+    margin: 0px;
+    background-color: #4C566A; /* 默认深灰背景 */
 }
 
 PriorityWidget QPushButton:checked {
-    border: 2px solid white;
+    border-color: rgba(255, 255, 255, 0.6);
+    font-weight: bold;
 }
 
-PriorityWidget QPushButton[priority="0"]:hover {
-    background-color: #FF6666;
-}
+/* --- 优先级 0: 紧急 (柔和砖红) --- */
+PriorityWidget QPushButton#priorityBtn_0 { background-color: #C96A6A; }
+PriorityWidget QPushButton#priorityBtn_0:hover { background-color: #D47C7C; }
+PriorityWidget QPushButton#priorityBtn_0:checked { background-color: #B05555; }
 
-PriorityWidget QPushButton[priority="1"]:hover {
-    background-color: #FFAA33;
-}
+/* --- 优先级 1: 重要 (大地橙/姜黄) --- */
+PriorityWidget QPushButton#priorityBtn_1 { background-color: #D69E68; }
+PriorityWidget QPushButton#priorityBtn_1:hover { background-color: #E0AB79; }
+PriorityWidget QPushButton#priorityBtn_1:checked { background-color: #BF8855; }
 
-PriorityWidget QPushButton[priority="2"]:hover {
-    background-color: #66BB6A;
-}
+/* --- 优先级 2: 普通 (鼠尾草绿) --- */
+PriorityWidget QPushButton#priorityBtn_2 { background-color: #7FA882; }
+PriorityWidget QPushButton#priorityBtn_2:hover { background-color: #91B693; }
+PriorityWidget QPushButton#priorityBtn_2:checked { background-color: #6D9470; }
 
-PriorityWidget QPushButton[priority="3"]:hover {
-    background-color: #BDBDBD;
-}
+/* --- 优先级 3: 不急 (冷灰) --- */
+PriorityWidget QPushButton#priorityBtn_3 { background-color: #8C949E; }
+PriorityWidget QPushButton#priorityBtn_3:hover { background-color: #9DA5AE; }
+PriorityWidget QPushButton#priorityBtn_3:checked { background-color: #707882; }
+
 
 /* 状态控件样式 */
 StatusWidget QPushButton {
-    background-color: #657896;
     color: white;
-    border: none;
+    border: 2px solid transparent;
     border-radius: 4px;
     font-size: 11px;
     font-weight: normal;
-}
-
-StatusWidget QPushButton[status="0"] {
-    background-color: #2196F3;
-}
-
-StatusWidget QPushButton[status="1"] {
-    background-color: #FF9800;
-}
-
-StatusWidget QPushButton[status="2"] {
-    background-color: #4CAF50;
-}
-
-StatusWidget QPushButton[status="3"] {
-    background-color: #F44336;
-}
-
-StatusWidget QPushButton:hover {
-    background-color: #4a5a6d;
+    padding: 2px 4px;
+    background-color: #4C566A;
 }
 
 StatusWidget QPushButton:checked {
-    border: 2px solid white;
+    border-color: rgba(255, 255, 255, 0.6);
+    font-weight: bold;
 }
 
-StatusWidget QPushButton[status="0"]:hover {
-    background-color: #42A5F5;
-}
+/* --- 状态 0: 待办 (钢蓝 - 接近主题色) --- */
+StatusWidget QPushButton#statusBtn_0 { background-color: #7696B3; }
+StatusWidget QPushButton#statusBtn_0:hover { background-color: #87A5BF; }
+StatusWidget QPushButton#statusBtn_0:checked { background-color: #62829E; }
 
-StatusWidget QPushButton[status="1"]:hover {
-    background-color: #FFB74D;
-}
+/* --- 状态 1: 进行中 (大地橙) --- */
+StatusWidget QPushButton#statusBtn_1 { background-color: #D69E68; }
+StatusWidget QPushButton#statusBtn_1:hover { background-color: #E0AB79; }
+StatusWidget QPushButton#statusBtn_1:checked { background-color: #BF8855; }
 
-StatusWidget QPushButton[status="2"]:hover {
-    background-color: #66BB6A;
-}
+/* --- 状态 2: 已完成 (鼠尾草绿) --- */
+StatusWidget QPushButton#statusBtn_2 { background-color: #7FA882; }
+StatusWidget QPushButton#statusBtn_2:hover { background-color: #91B693; }
+StatusWidget QPushButton#statusBtn_2:checked { background-color: #6D9470; }
 
-StatusWidget QPushButton[status="3"]:hover {
-    background-color: #EF5350;
-}
+/* --- 状态 3: 已延期 (柔和砖红) --- */
+StatusWidget QPushButton#statusBtn_3 { background-color: #C96A6A; }
+StatusWidget QPushButton#statusBtn_3:hover { background-color: #D47C7C; }
+StatusWidget QPushButton#statusBtn_3:checked { background-color: #B05555; }
 
-/* 标签控件样式 */
-TagWidget {
-    background-color: transparent;
-}
-
+/* 标签控件样式 - 这里的样式主要用于 TagWidget 之外的普通按钮，TagWidget 内部已重写 paintEvent */
 TagWidget QPushButton {
-    background-color: #657896;
     color: white;
     border: none;
     border-radius: 12px;
-    padding: 4px 12px;
+    padding: 2px 10px;
     font-size: 11px;
     font-weight: normal;
-    min-height: 24px;
-}
-
-TagWidget QPushButton:hover {
-    background-color: #4a5a6d;
+    min-height: 20px;
 }

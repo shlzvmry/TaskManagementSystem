@@ -86,21 +86,21 @@ QString TaskItem::statusText() const {
 
 QColor TaskItem::priorityColor() const {
     switch (priority) {
-    case 0: return QColor("#FF4444"); // 红色
-    case 1: return QColor("#FF9900"); // 橙色
-    case 2: return QColor("#4CAF50"); // 绿色
-    case 3: return QColor("#9E9E9E"); // 灰色
-    default: return QColor("#657896"); // 主题色
+    case 0: return QColor("#C96A6A");
+    case 1: return QColor("#D69E68");
+    case 2: return QColor("#7FA882");
+    case 3: return QColor("#8C949E");
+    default: return QColor("#7696B3");
     }
 }
 
 QColor TaskItem::statusColor() const {
     switch (status) {
-    case 0: return QColor("#2196F3"); // 蓝色
-    case 1: return QColor("#FF9800"); // 橙色
-    case 2: return QColor("#4CAF50"); // 绿色
-    case 3: return QColor("#F44336"); // 红色
-    default: return QColor("#9E9E9E"); // 灰色
+    case 0: return QColor("#7696B3");
+    case 1: return QColor("#D69E68");
+    case 2: return QColor("#7FA882");
+    case 3: return QColor("#C96A6A");
+    default: return QColor("#8C949E");
     }
 }
 
