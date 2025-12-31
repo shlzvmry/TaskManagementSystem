@@ -8,7 +8,11 @@
 #include "dialogs/tagmanagerdialog.h"
 #include "models/taskfiltermodel.h"
 #include "widgets/comboboxdelegate.h"
+#include "views/kanbanview.h"
+#include "views/calenderview.h"
 
+#include <QStackedWidget>
+#include <QComboBox>
 #include <QApplication>
 #include <QScreen>
 #include <QFile>
@@ -25,6 +29,10 @@
 #include <QMenuBar>
 #include <QMenu>
 #include <QSplitter>
+#include <QLineEdit>
+#include <QButtonGroup>
+#include <QShortcut>
+#include <QKeySequence>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -76,53 +84,6 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    // 创建菜单栏
-    QMenuBar *menuBar = new QMenuBar(this);
-    setMenuBar(menuBar);
-
-    // 文件菜单
-    QMenu *fileMenu = menuBar->addMenu("文件(&F)");
-    QAction *newAction = fileMenu->addAction("新建任务(&N)");
-    newAction->setShortcut(QKeySequence::New);
-    connect(newAction, &QAction::triggered, this, &MainWindow::onAddTaskClicked);
-
-    // 回收站菜单项
-    QAction *recycleBinAction = fileMenu->addAction("回收站(&R)");
-    recycleBinAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R));
-    connect(recycleBinAction, &QAction::triggered, this, &MainWindow::onRecycleBinClicked);
-
-    fileMenu->addSeparator();
-    QAction *exitAction = fileMenu->addAction("退出(&X)");
-    exitAction->setShortcut(QKeySequence::Quit);
-    connect(exitAction, &QAction::triggered, this, &MainWindow::quitApplication);
-
-    // 编辑菜单
-    QMenu *editMenu = menuBar->addMenu("编辑(&E)");
-    QAction *editAction = editMenu->addAction("编辑任务(&E)");
-    editAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
-    connect(editAction, &QAction::triggered, this, &MainWindow::onEditTaskClicked);
-
-    QAction *deleteAction = editMenu->addAction("删除任务(&D)");
-    deleteAction->setShortcut(QKeySequence::Delete);
-    connect(deleteAction, &QAction::triggered, this, &MainWindow::onDeleteTaskClicked);
-
-    editMenu->addSeparator();
-    QAction *refreshAction = editMenu->addAction("刷新(&R)");
-    refreshAction->setShortcut(QKeySequence::Refresh);
-    connect(refreshAction, &QAction::triggered, this, &MainWindow::onRefreshTasksClicked);
-
-    // 帮助菜单
-    QMenu *helpMenu = menuBar->addMenu("帮助(&H)");
-    QAction *aboutAction = helpMenu->addAction("关于(&A)");
-    connect(aboutAction, &QAction::triggered, this, []() {
-        QMessageBox::about(nullptr, "关于",
-                           "个人工作与任务管理系统\n\n"
-                           "版本: 1.0.0\n"
-                           "开发者: 谢静蕾\n"
-                           "学号: 2023414300117\n\n"
-                           "基于 Qt 6 开发的任务管理系统，支持任务管理、灵感记录、统计报表等功能。");
-    });
-
     // 创建中央部件
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
@@ -170,96 +131,168 @@ void MainWindow::createTaskTab()
     QWidget *taskTab = new QWidget();
     QVBoxLayout *layout = new QVBoxLayout(taskTab);
 
-    // --- 1. 创建工具栏 (保持不变) ---
     QHBoxLayout *toolbarLayout = new QHBoxLayout();
-    QPushButton *addBtn = new QPushButton(taskTab);
+
+    QPushButton *addBtn = new QPushButton("添加", taskTab);
     addBtn->setObjectName("addTaskBtn");
     addBtn->setIcon(QIcon(":/icons/add_icon.png"));
-    addBtn->setText("添加任务");
 
-    QPushButton *editBtn = new QPushButton(taskTab);
+    QPushButton *editBtn = new QPushButton("编辑", taskTab);
     editBtn->setObjectName("editTaskBtn");
     editBtn->setIcon(QIcon(":/icons/edit_icon.png"));
-    editBtn->setText("编辑任务");
 
-    QPushButton *deleteBtn = new QPushButton(taskTab);
+    QPushButton *deleteBtn = new QPushButton("删除", taskTab);
     deleteBtn->setObjectName("deleteTaskBtn");
     deleteBtn->setIcon(QIcon(":/icons/delete_icon.png"));
-    deleteBtn->setText("删除任务");
-
-    QPushButton *recycleBinBtn = new QPushButton(taskTab);
-    recycleBinBtn->setObjectName("recycleBinBtn");
-    recycleBinBtn->setIcon(QIcon(":/icons/recycle_icon.png"));
-    recycleBinBtn->setText("回收站");
-
-    QPushButton *refreshBtn = new QPushButton(taskTab);
-    refreshBtn->setObjectName("refreshBtn");
-    refreshBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
-    refreshBtn->setText("刷新");
 
     toolbarLayout->addWidget(addBtn);
     toolbarLayout->addWidget(editBtn);
     toolbarLayout->addWidget(deleteBtn);
+
+    toolbarLayout->addSpacing(20);
+    toolbarLayout->addWidget(new QLabel("过滤:", taskTab));
+
+    filterCategoryCombo = new QComboBox(taskTab);
+    filterCategoryCombo->setObjectName("filterCategoryCombo");
+    filterCategoryCombo->addItem("所有分类", -1);
+    QList<QVariantMap> cats = Database::instance().getAllCategories();
+    for(const auto &cat : cats) {
+        filterCategoryCombo->addItem(cat["name"].toString(), cat["id"]);
+    }
+
+    filterPriorityCombo = new QComboBox(taskTab);
+    filterPriorityCombo->setObjectName("filterPriorityCombo");
+    filterPriorityCombo->addItem("所有优先级", -1);
+    filterPriorityCombo->addItem("紧急", 0);
+    filterPriorityCombo->addItem("重要", 1);
+    filterPriorityCombo->addItem("普通", 2);
+    filterPriorityCombo->addItem("不急", 3);
+
+    searchEdit = new QLineEdit(taskTab);
+    searchEdit->setPlaceholderText("搜索任务...");
+    searchEdit->setFixedWidth(190);
+
+    toolbarLayout->addWidget(filterCategoryCombo);
+    toolbarLayout->addWidget(filterPriorityCombo);
+    toolbarLayout->addWidget(searchEdit);
+
     toolbarLayout->addStretch();
+
+    QPushButton *recycleBinBtn = new QPushButton("回收站", taskTab);
+    recycleBinBtn->setObjectName("recycleBinBtn");
+    recycleBinBtn->setIcon(QIcon(":/icons/recycle_icon.png"));
+
+    QPushButton *tagManagerBtn = new QPushButton("标签管理", taskTab);
+    tagManagerBtn->setObjectName("tagManagerBtn");
+    tagManagerBtn->setIcon(QIcon(":/icons/edit_icon.png"));
+
+    QPushButton *refreshBtn = new QPushButton("刷新", taskTab);
+    refreshBtn->setObjectName("refreshBtn");
+    refreshBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
+
     toolbarLayout->addWidget(recycleBinBtn);
+    toolbarLayout->addWidget(tagManagerBtn);
     toolbarLayout->addWidget(refreshBtn);
 
-    taskSplitter = new QSplitter(Qt::Vertical, taskTab);
+    viewStack = new QStackedWidget(taskTab);
+
+    // 视图1: 列表视图
+    QWidget *listViewWidget = new QWidget();
+    QVBoxLayout *listLayout = new QVBoxLayout(listViewWidget);
+    listLayout->setContentsMargins(0,0,0,0);
+
+    taskSplitter = new QSplitter(Qt::Vertical, listViewWidget);
     taskSplitter->setHandleWidth(1);
     taskSplitter->setStyleSheet("QSplitter::handle { background-color: #3d3d3d; }");
 
-    // 创建两个代理模型
     uncompletedProxyModel = new TaskFilterModel(this);
     uncompletedProxyModel->setSourceModel(taskModel);
-    uncompletedProxyModel->setFilterType(TaskFilterModel::UncompletedTasks);
+    uncompletedProxyModel->setFilterMode(TaskFilterModel::FilterUncompleted);
 
     completedProxyModel = new TaskFilterModel(this);
     completedProxyModel->setSourceModel(taskModel);
-    completedProxyModel->setFilterType(TaskFilterModel::CompletedTasks);
+    completedProxyModel->setFilterMode(TaskFilterModel::FilterCompleted);
 
     uncompletedTableView = new QTableView(taskSplitter);
     setupTaskTableView(uncompletedTableView, uncompletedProxyModel);
 
     completedTableView = new QTableView(taskSplitter);
     setupTaskTableView(completedTableView, completedProxyModel);
-
-    // 隐藏下方表格的表头
     completedTableView->horizontalHeader()->hide();
 
     taskSplitter->addWidget(uncompletedTableView);
     taskSplitter->addWidget(completedTableView);
-
     taskSplitter->setStretchFactor(0, 7);
     taskSplitter->setStretchFactor(1, 3);
 
-    // 当上方表格列宽改变时，同步下方表格
-    connect(uncompletedTableView->horizontalHeader(), &QHeaderView::sectionResized,
-            completedTableView->horizontalHeader(), [this](int logicalIndex, int oldSize, int newSize){
-                Q_UNUSED(oldSize);
-                completedTableView->setColumnWidth(logicalIndex, newSize);
-            });
+    listLayout->addWidget(taskSplitter);
 
-    QHBoxLayout *viewLayout = new QHBoxLayout();
+    // 视图2: 看板视图
+    kanbanView = new KanbanView(taskTab);
+    kanbanView->setModel(taskModel);
+
+    // 视图3: 日历视图
+    calendarView = new CalendarView(taskTab);
+    calendarView->setTaskModel(taskModel);
+
+    // 添加到 Stack
+    viewStack->addWidget(listViewWidget); // Index 0
+    viewStack->addWidget(kanbanView);     // Index 1
+    viewStack->addWidget(calendarView);   // Index 2
+
+    // 底部视图切换栏
+    QHBoxLayout *viewSwitchLayout = new QHBoxLayout();
+    QButtonGroup *viewGroup = new QButtonGroup(taskTab);
+
     QPushButton *listViewBtn = new QPushButton("列表视图", taskTab);
-    QPushButton *kanbanViewBtn = new QPushButton("看板视图", taskTab);
-    QPushButton *calendarViewBtn = new QPushButton("日历视图", taskTab);
-    QPushButton *tagManagerBtn = new QPushButton("标签管理", taskTab);
-    tagManagerBtn->setObjectName("tagManagerBtn");
-    tagManagerBtn->setIcon(QIcon(":/icons/edit_icon.png"));
-
+    listViewBtn->setCheckable(true);
+    listViewBtn->setChecked(true);
     listViewBtn->setObjectName("listViewBtn");
+
+    QPushButton *kanbanViewBtn = new QPushButton("看板视图", taskTab);
+    kanbanViewBtn->setCheckable(true);
     kanbanViewBtn->setObjectName("kanbanViewBtn");
+
+    QPushButton *calendarViewBtn = new QPushButton("日历视图", taskTab);
+    calendarViewBtn->setCheckable(true);
     calendarViewBtn->setObjectName("calendarViewBtn");
 
-    viewLayout->addWidget(listViewBtn);
-    viewLayout->addWidget(kanbanViewBtn);
-    viewLayout->addWidget(calendarViewBtn);
-    viewLayout->addStretch();
-    viewLayout->addWidget(tagManagerBtn);
+    viewGroup->addButton(listViewBtn, 0);
+    viewGroup->addButton(kanbanViewBtn, 1);
+    viewGroup->addButton(calendarViewBtn, 2);
 
+    viewSwitchLayout->addStretch();
+    viewSwitchLayout->addWidget(listViewBtn);
+    viewSwitchLayout->addWidget(kanbanViewBtn);
+    viewSwitchLayout->addWidget(calendarViewBtn);
+    viewSwitchLayout->addStretch();
+
+    // 连接视图切换
+    connect(viewGroup, &QButtonGroup::idClicked, viewStack, &QStackedWidget::setCurrentIndex);
+
+    // 连接过滤器
+    auto updateFilters = [this]() {
+        int catId = filterCategoryCombo->currentData().toInt();
+        int pri = filterPriorityCombo->currentData().toInt();
+        QString text = searchEdit->text();
+
+        uncompletedProxyModel->setFilterCategory(catId);
+        uncompletedProxyModel->setFilterPriority(pri);
+        uncompletedProxyModel->setFilterText(text);
+
+        completedProxyModel->setFilterCategory(catId);
+        completedProxyModel->setFilterPriority(pri);
+        completedProxyModel->setFilterText(text);
+    };
+
+    connect(filterCategoryCombo, &QComboBox::currentIndexChanged, this, updateFilters);
+    connect(filterPriorityCombo, &QComboBox::currentIndexChanged, this, updateFilters);
+    connect(searchEdit, &QLineEdit::textChanged, this, updateFilters);
+
+    // 布局组装
     layout->addLayout(toolbarLayout);
-    layout->addWidget(taskSplitter, 1);
-    layout->addLayout(viewLayout);
+    layout->addWidget(viewStack, 1);
+    layout->addLayout(viewSwitchLayout);
 
     tabWidget->addTab(taskTab, "任务管理");
 }
@@ -300,7 +333,7 @@ void MainWindow::setupTaskTableView(QTableView *view, QAbstractItemModel *model)
     header->setSectionResizeMode(QHeaderView::Interactive);
     header->setHighlightSections(false);
 
-    view->verticalHeader()->setDefaultSectionSize(35); // 稍微高一点方便点击
+    view->verticalHeader()->setDefaultSectionSize(35);
     view->verticalHeader()->setVisible(false);
 
     connect(view, &QTableView::doubleClicked, this, &MainWindow::onTaskDoubleClicked);
@@ -661,7 +694,11 @@ void MainWindow::loadStyleSheet()
     // 使用资源路径加载样式表
     QStringList stylePaths = {
         ":/styles/mainwindow.qss",
-        ":/styles/widget.qss"
+        ":/styles/widget.qss",
+        ":/styles/kanban.qss",
+        ":/styles/calendar.qss",
+        ":/styles/dialog.qss",
+
     };
 
     for (const QString &path : stylePaths) {

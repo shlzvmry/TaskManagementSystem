@@ -42,6 +42,15 @@ HEADERS += \
     models/inspirationmodel.h \
     models/taskfiltermodel.h \
 
+#视图模块
+SOURCES += \
+    views/kanbanview.cpp \
+    views/calenderview.cpp \
+
+HEADERS += \
+    views/kanbanview.h \
+    views/calenderview.h \
+
 #对话框模块
 SOURCES += \
     dialogs/taskdialog.cpp\
@@ -75,6 +84,7 @@ INCLUDEPATH += \
     $$PWD/widgets \
     $$PWD/models \
     $$PWD/dialogs \
+    $$PWD/views \
 
 # Default rules for deployment.
 CODECFORTR = UTF-8

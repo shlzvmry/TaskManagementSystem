@@ -7,8 +7,12 @@
         <file>icons/recycle_icon.png</file>
         <file>icons/refresh_icon.png</file>
         <file>icons/tray_icon.png</file>
-        
-        <file alias="styles/mainwindow.qss">../styles/mainwindow.qss</file>
-        <file alias="styles/widget.qss">../styles/widget.qss</file>
+        <file>styles/kanban.qss</file>
+        <file>styles/mainwindow.qss</file>
+        <file>styles/widget.qss</file>
+        <file>styles/calendar.qss</file>
+        <file>styles/dialog.qss</file>
+        <file>icons/left_arrow.png</file>
+        <file>icons/right_arrow.png</file>
     </qresource>
 </RCC>

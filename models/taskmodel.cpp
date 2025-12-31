@@ -192,30 +192,35 @@ bool TaskModel::setData(const QModelIndex &index, const QVariant &value, int rol
 
     // 获取任务ID
     int taskId = tasks[index.row()].id;
+    const TaskItem &currentItem = tasks[index.row()];
 
-    // 准备更新数据
-    QVariantMap taskData = tasks[index.row()].toVariantMap();
+    QVariantMap taskData = currentItem.toVariantMap();
     bool changed = false;
 
     if (role == PriorityRole || (index.column() == 3 && role == Qt::EditRole)) {
-        taskData["priority"] = value.toInt();
-        changed = true;
+        int newPriority = value.toInt();
+        if (newPriority != currentItem.priority) {
+            taskData["priority"] = newPriority;
+            changed = true;
+        }
     }
     else if (role == StatusRole || (index.column() == 4 && role == Qt::EditRole)) {
         int newStatus = value.toInt();
-        taskData["status"] = newStatus;
 
-        // 如果状态变为已完成，自动设置完成时间
-        if (newStatus == 2) {
-            taskData["completed_at"] = QDateTime::currentDateTime();
-        } else {
-            taskData["completed_at"] = QVariant(); // 清空完成时间
+        if (newStatus != currentItem.status) {
+            taskData["status"] = newStatus;
+
+            // 如果状态变为已完成，自动设置完成时间
+            if (newStatus == 2) {
+                taskData["completed_at"] = QDateTime::currentDateTime();
+            } else {
+                taskData["completed_at"] = QVariant(); // 清空完成时间
+            }
+            changed = true;
         }
-        changed = true;
     }
 
     if (changed) {
-        // 调用现有的 updateTask 方法更新数据库和内存
         return updateTask(taskId, taskData);
     }
 

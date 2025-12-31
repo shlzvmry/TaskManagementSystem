@@ -80,6 +80,7 @@ void TaskDialog::setupUI()
     // 安装事件过滤器以支持横向滚动
     ui->scrollAreaSelectedTags->installEventFilter(this);
     ui->scrollAreaExistingTags->installEventFilter(this);
+    ui->lineEditNewTag->installEventFilter(this);
     ui->scrollAreaWidgetContentsExisting->layout()->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     // 初始化时间控件
@@ -396,13 +397,11 @@ void TaskDialog::onAddTagClicked()
         return;
     }
 
-    // 支持逗号分隔的多个标签
-    QStringList newTags = newTagText.split(",", Qt::SkipEmptyParts);
+    QStringList newTags = newTagText.replace("，", ",").split(",", Qt::SkipEmptyParts);
 
     for (QString &tag : newTags) {
         tag = tag.trimmed();
 
-        // 限制标签长度
         if (tag.length() > 6) {
             QMessageBox::warning(this, "格式错误", QString("标签 '%1' 过长，请限制在6个字以内").arg(tag));
             continue;
@@ -468,6 +467,22 @@ QVariantMap TaskDialog::editTask(const QVariantMap &taskData, QWidget *parent)
 
 bool TaskDialog::eventFilter(QObject *obj, QEvent *event)
 {
+    if (obj == ui->lineEditNewTag && event->type() == QEvent::KeyPress) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
+            // 输入框有内容 -> 添加标签，不关闭窗口
+            if (!ui->lineEditNewTag->text().trimmed().isEmpty()) {
+                onAddTagClicked();
+            }
+            // 输入框为空 -> 执行保存操作
+            else {
+                onSaveClicked();
+            }
+            return true;
+        }
+    }
+
+    // 处理横向滚动
     if (event->type() == QEvent::Wheel) {
         QScrollArea *scrollArea = qobject_cast<QScrollArea*>(obj);
         if (scrollArea && (scrollArea == ui->scrollAreaSelectedTags || scrollArea == ui->scrollAreaExistingTags)) {
@@ -503,15 +518,10 @@ void TaskDialog::addExistingTagButton(const QString &name, const QString &color)
 
     QString dynamicStyle = QString(
                                "QPushButton#existingTagBtn {"
-                               "  background-color: transparent;"
-                               "  color: #CCCCCC;"
                                "  border: 1px solid %1;"
-                               "  border-radius: 4px;"
-                               "  padding: 0px 4px;"
                                "}"
                                "QPushButton#existingTagBtn:hover {"
                                "  background-color: %1;"
-                               "  color: white;"
                                "  border: 1px solid %1;"
                                "}"
                                ).arg(color);

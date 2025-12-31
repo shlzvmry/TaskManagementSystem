@@ -69,6 +69,16 @@ private:
     QTableView *uncompletedTableView;
     QTableView *completedTableView;
 
+    // 新增视图
+    class KanbanView *kanbanView;
+    class CalendarView *calendarView;
+    class QStackedWidget *viewStack;
+
+    // 过滤器控件
+    class QComboBox *filterCategoryCombo;
+    class QComboBox *filterPriorityCombo;
+    class QLineEdit *searchEdit;
+
     //对话框
     RecycleBinDialog *recycleBinDialog;
 

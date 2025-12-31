@@ -1,0 +1,14 @@
+QPushButton#existingTagBtn {
+    background-color: transparent;
+    color: #CCCCCC;
+    border-radius: 4px;
+    padding: 0px 8px;
+    font-size: 11px;
+    min-height: 20px;
+    max-height: 24px;
+    margin: 2px;
+}
+
+QPushButton#existingTagBtn:hover {
+    color: white;
+}
