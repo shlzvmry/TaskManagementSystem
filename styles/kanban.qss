@@ -1,0 +1,89 @@
+/* 看板样式 */
+#kanbanColumn {
+    background-color: #f8f9fa;
+    border: 1px solid #d1d9e6;
+    border-radius: 6px;
+    margin: 5px;
+    min-width: 280px;
+}
+
+/* 看板列表 */
+QListWidget {
+    background-color: transparent;
+    border: none;
+    padding: 5px;
+}
+
+QListWidget::item {
+    background-color: white;
+    border: 1px solid #e6e9ef;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 3px 0;
+}
+
+QListWidget::item:hover {
+    background-color: #f8f9fa;
+    border-color: #657896;
+}
+
+QListWidget::item:selected {
+    background-color: #f0f7ff;
+    border-color: #657896;
+}
+
+/* 看板任务卡片 */
+.kanban-card {
+    background-color: white;
+    border-left: 4px solid #657896;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 5px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.kanban-card:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.kanban-card-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.kanban-card-description {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-bottom: 8px;
+}
+
+.kanban-card-footer {
+    font-size: 11px;
+    color: #95a5a6;
+    border-top: 1px solid #ecf0f1;
+    padding-top: 5px;
+}
+
+/* 拖拽指示器 */
+QListWidget::item:selected {
+    background-color: #657896;
+    color: white;
+}
+
+/* 滚动条 */
+QScrollArea {
+    border: none;
+    background-color: #f5f7fa;
+}
+
+/* 列标题 */
+QLabel[objectName^="kanban"] {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px;
+    text-align: center;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}

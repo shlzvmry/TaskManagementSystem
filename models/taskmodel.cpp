@@ -57,7 +57,12 @@ QVariant TaskModel::data(const QModelIndex &index, int role) const
         case 4: return task.statusText();
         case 5: return task.deadline.isValid() ? task.deadline.toString("yyyy-MM-dd HH:mm") : "-";
         case 6: return task.remindTime.isValid() ? task.remindTime.toString("yyyy-MM-dd HH:mm") : "-"; // 新增
-        case 7: return task.createdAt.toString("yyyy-MM-dd HH:mm");
+        case 7: {
+            if (task.status == 2) {
+                return task.completedAt.isValid() ? task.completedAt.toString("yyyy-MM-dd HH:mm") : "-";
+            }
+            return task.createdAt.isValid() ? task.createdAt.toString("yyyy-MM-dd HH:mm") : "-";
+        }
         default: return QVariant();
         }
 
@@ -117,7 +122,7 @@ QVariant TaskModel::headerData(int section, Qt::Orientation orientation, int rol
         case 4: return "状态";
         case 5: return "截止时间";
         case 6: return "提醒时间";
-        case 7: return "创建时间";
+        case 7: return "创建/完成时间";
         default: return QVariant();
         }
     }

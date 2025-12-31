@@ -50,7 +50,11 @@ private:
     StatusWidget *m_statusWidget;
     TagWidget *m_tagWidget;
     QWidget *m_existingTagsContainer;
-
+    class QLabel *m_labelCreatedTime;
+    class QLabel *m_labelCompletedTime;
+    int m_originalStatus;
+    QDateTime m_originalCompletedTime;
+    QDateTime m_originalCreatedTime;
     void setupUI();
     void setupConnections();
     void initDateTimeEdits();
