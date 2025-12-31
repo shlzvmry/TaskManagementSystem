@@ -151,7 +151,7 @@ void TagManagerDialog::onDeleteTagClicked()
 
 void TagManagerDialog::onRemoveRelationClicked()
 {
-    // 1. 获取当前选中的标签
+    // 获取当前选中的标签
     QListWidgetItem *tagItem = ui->tagListWidget->currentItem();
     if (!tagItem) {
         QMessageBox::warning(this, "提示", "请先在左侧选择一个标签");
@@ -159,7 +159,7 @@ void TagManagerDialog::onRemoveRelationClicked()
     }
     int tagId = tagItem->data(Qt::UserRole).toInt();
 
-    // 2. 获取当前选中的任务
+    //获取当前选中的任务
     int currentRow = ui->taskTableWidget->currentRow();
     if (currentRow < 0) {
         QMessageBox::warning(this, "提示", "请在右侧列表中选择要解除关联的任务");
@@ -172,7 +172,7 @@ void TagManagerDialog::onRemoveRelationClicked()
     int taskId = idItem->text().toInt();
     QString taskTitle = ui->taskTableWidget->item(currentRow, 1)->text();
 
-    // 3. 确认并执行
+    // 确认并执行
     QString msg = QString("确定要移除任务 '%1' 的 '%2' 标签吗？").arg(taskTitle).arg(tagItem->text());
     if (QMessageBox::question(this, "确认解除", msg) == QMessageBox::Yes) {
         if (Database::instance().removeTaskTagRelation(taskId, tagId)) {

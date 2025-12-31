@@ -58,13 +58,13 @@ QWidget {
     color: #ffffff;
 }
 
-/* 按钮通用样式 - 所有按钮统一颜色 */
+/* 按钮通用样式 */
 QPushButton {
     background-color: #657896;
     color: #ffffff;
     border: 1px solid #4d4d4d;
     border-radius: 4px;
-    padding: 8px 16px 8px 16px; /* 左边留出图标空间 */
+    padding: 8px 16px 8px 16px;
     font-size: 14px;
     text-align: center;
     min-height: 20px;
@@ -86,12 +86,12 @@ QPushButton:disabled {
     border-color: #3d3d3d;
 }
 
-/* 按钮图标样式 - 统一设置图标位置和大小 */
+/* 按钮图标样式 */
 QPushButton::menu-indicator {
     image: none;
 }
 
-/* 设置按钮的图标 - 所有图标都统一大小为22x22 */
+/* 设置按钮的图标 */
 QPushButton[objectName^="add"],
 QPushButton[objectName^="edit"],
 QPushButton[objectName^="delete"],
@@ -100,8 +100,8 @@ QPushButton[objectName^="quickRecord"],
 QPushButton[objectName^="listView"],
 QPushButton[objectName^="kanbanView"],
 QPushButton[objectName^="calendarView"] {
-    qproperty-iconSize: 20px; /* 设置图标大小 */
-    padding-left: 15px; /* 左边更大的padding给图标 */
+    qproperty-iconSize: 20px;
+    padding-left: 15px;
     background-position: left 10px center;
     background-repeat: no-repeat;
     background-origin: content;
@@ -189,7 +189,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url(:/icons/dropdown_arrow.png); /* 如果需要可以添加下拉箭头图标 */
+    image: url(:/icons/dropdown_arrow.png);
     width: 12px;
     height: 12px;
 }
@@ -211,7 +211,7 @@ QCheckBox::indicator {
 QCheckBox::indicator:checked {
     background-color: #657896;
     border-color: #657896;
-    image: url(:/icons/checkmark.png); /* 如果需要可以添加勾选图标 */
+    image: url(:/icons/checkmark.png);
 }
 
 /* 单选框样式 */

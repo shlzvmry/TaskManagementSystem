@@ -6,6 +6,8 @@
 #include "dialogs/taskdialog.h"
 #include "dialogs/recyclebindialog.h"
 #include "dialogs/tagmanagerdialog.h"
+#include "models/taskfiltermodel.h"
+#include "widgets/comboboxdelegate.h"
 
 #include <QApplication>
 #include <QScreen>
@@ -22,6 +24,7 @@
 #include <QShortcut>
 #include <QMenuBar>
 #include <QMenu>
+#include <QSplitter>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -167,40 +170,32 @@ void MainWindow::createTaskTab()
     QWidget *taskTab = new QWidget();
     QVBoxLayout *layout = new QVBoxLayout(taskTab);
 
-    // 创建工具栏
+    // --- 1. 创建工具栏 (保持不变) ---
     QHBoxLayout *toolbarLayout = new QHBoxLayout();
-
-    // 使用图标的按钮
     QPushButton *addBtn = new QPushButton(taskTab);
     addBtn->setObjectName("addTaskBtn");
     addBtn->setIcon(QIcon(":/icons/add_icon.png"));
     addBtn->setText("添加任务");
-    addBtn->setToolTip("添加新任务 (Ctrl+N)");
 
     QPushButton *editBtn = new QPushButton(taskTab);
     editBtn->setObjectName("editTaskBtn");
     editBtn->setIcon(QIcon(":/icons/edit_icon.png"));
     editBtn->setText("编辑任务");
-    editBtn->setToolTip("编辑选中任务 (Ctrl+E)");
 
     QPushButton *deleteBtn = new QPushButton(taskTab);
     deleteBtn->setObjectName("deleteTaskBtn");
     deleteBtn->setIcon(QIcon(":/icons/delete_icon.png"));
     deleteBtn->setText("删除任务");
-    deleteBtn->setToolTip("删除选中任务 (Delete)");
 
-    // 回收站按钮
     QPushButton *recycleBinBtn = new QPushButton(taskTab);
     recycleBinBtn->setObjectName("recycleBinBtn");
     recycleBinBtn->setIcon(QIcon(":/icons/recycle_icon.png"));
     recycleBinBtn->setText("回收站");
-    recycleBinBtn->setToolTip("打开回收站 (Ctrl+Shift+R)");
 
     QPushButton *refreshBtn = new QPushButton(taskTab);
     refreshBtn->setObjectName("refreshBtn");
     refreshBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
     refreshBtn->setText("刷新");
-    refreshBtn->setToolTip("刷新任务列表 (F5)");
 
     toolbarLayout->addWidget(addBtn);
     toolbarLayout->addWidget(editBtn);
@@ -209,21 +204,48 @@ void MainWindow::createTaskTab()
     toolbarLayout->addWidget(recycleBinBtn);
     toolbarLayout->addWidget(refreshBtn);
 
-    // 创建任务表格视图
-    taskTableView = new QTableView(taskTab);
-    taskTableView->setObjectName("taskTableView");
-    setupTaskTableView();
+    taskSplitter = new QSplitter(Qt::Vertical, taskTab);
+    taskSplitter->setHandleWidth(1);
+    taskSplitter->setStyleSheet("QSplitter::handle { background-color: #3d3d3d; }");
 
-    // 创建视图切换按钮
+    // 创建两个代理模型
+    uncompletedProxyModel = new TaskFilterModel(this);
+    uncompletedProxyModel->setSourceModel(taskModel);
+    uncompletedProxyModel->setFilterType(TaskFilterModel::UncompletedTasks);
+
+    completedProxyModel = new TaskFilterModel(this);
+    completedProxyModel->setSourceModel(taskModel);
+    completedProxyModel->setFilterType(TaskFilterModel::CompletedTasks);
+
+    uncompletedTableView = new QTableView(taskSplitter);
+    setupTaskTableView(uncompletedTableView, uncompletedProxyModel);
+
+    completedTableView = new QTableView(taskSplitter);
+    setupTaskTableView(completedTableView, completedProxyModel);
+
+    // 隐藏下方表格的表头
+    completedTableView->horizontalHeader()->hide();
+
+    taskSplitter->addWidget(uncompletedTableView);
+    taskSplitter->addWidget(completedTableView);
+
+    taskSplitter->setStretchFactor(0, 7);
+    taskSplitter->setStretchFactor(1, 3);
+
+    // 当上方表格列宽改变时，同步下方表格
+    connect(uncompletedTableView->horizontalHeader(), &QHeaderView::sectionResized,
+            completedTableView->horizontalHeader(), [this](int logicalIndex, int oldSize, int newSize){
+                Q_UNUSED(oldSize);
+                completedTableView->setColumnWidth(logicalIndex, newSize);
+            });
+
     QHBoxLayout *viewLayout = new QHBoxLayout();
     QPushButton *listViewBtn = new QPushButton("列表视图", taskTab);
     QPushButton *kanbanViewBtn = new QPushButton("看板视图", taskTab);
     QPushButton *calendarViewBtn = new QPushButton("日历视图", taskTab);
-
-    // 新增：标签管理按钮
     QPushButton *tagManagerBtn = new QPushButton("标签管理", taskTab);
     tagManagerBtn->setObjectName("tagManagerBtn");
-    tagManagerBtn->setIcon(QIcon(":/icons/edit_icon.png")); // 复用编辑图标
+    tagManagerBtn->setIcon(QIcon(":/icons/edit_icon.png"));
 
     listViewBtn->setObjectName("listViewBtn");
     kanbanViewBtn->setObjectName("kanbanViewBtn");
@@ -233,57 +255,61 @@ void MainWindow::createTaskTab()
     viewLayout->addWidget(kanbanViewBtn);
     viewLayout->addWidget(calendarViewBtn);
     viewLayout->addStretch();
-    viewLayout->addWidget(tagManagerBtn); // 放在最右侧
+    viewLayout->addWidget(tagManagerBtn);
 
     layout->addLayout(toolbarLayout);
-    layout->addWidget(taskTableView, 1);
+    layout->addWidget(taskSplitter, 1);
     layout->addLayout(viewLayout);
 
     tabWidget->addTab(taskTab, "任务管理");
 }
 
-void MainWindow::setupTaskTableView()
+void MainWindow::setupTaskTableView(QTableView *view, QAbstractItemModel *model)
 {
-    if (!taskTableView || !taskModel) return;
+    if (!view || !model) return;
 
-    taskTableView->setModel(taskModel);
-    taskTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    taskTableView->setSelectionMode(QAbstractItemView::SingleSelection);
-    taskTableView->setAlternatingRowColors(true);
-    taskTableView->setSortingEnabled(true); // 确保开启排序
-    taskTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    view->setModel(model);
+    view->setSelectionBehavior(QAbstractItemView::SelectRows);
+    view->setSelectionMode(QAbstractItemView::SingleSelection);
+    view->setAlternatingRowColors(true);
+    view->setSortingEnabled(true);
 
-    // 默认按截止时间排序
-    taskTableView->sortByColumn(5, Qt::AscendingOrder);
+    // 允许点击触发编辑
+    view->setEditTriggers(QAbstractItemView::AllEditTriggers);
+
+    // 应用自定义代理
+    ComboBoxDelegate *delegate = new ComboBoxDelegate(this);
+    view->setItemDelegateForColumn(3, delegate); // 优先级列
+    view->setItemDelegateForColumn(4, delegate); // 状态列
+
+    view->sortByColumn(5, Qt::AscendingOrder);
 
     // 设置列宽
-    taskTableView->horizontalHeader()->setStretchLastSection(true);
-    taskTableView->setColumnWidth(0, 50);   // ID
-    taskTableView->setColumnWidth(1, 200);  // 标题
-    taskTableView->setColumnWidth(2, 100);  // 分类
-    taskTableView->setColumnWidth(3, 80);   // 优先级
-    taskTableView->setColumnWidth(4, 80);   // 状态
-    taskTableView->setColumnWidth(5, 180);  // 截止时间
-    taskTableView->setColumnWidth(6, 180);  // 提醒时间
-    taskTableView->setColumnWidth(7, 140);  // 创建时间
+    view->horizontalHeader()->setStretchLastSection(true);
+    view->setColumnWidth(0, 50);   // ID
+    view->setColumnWidth(1, 200);  // 标题
+    view->setColumnWidth(2, 100);  // 分类
+    view->setColumnWidth(3, 80);   // 优先级
+    view->setColumnWidth(4, 80);   // 状态
+    view->setColumnWidth(5, 180);  // 截止时间
+    view->setColumnWidth(6, 180);  // 提醒时间
+    view->setColumnWidth(7, 140);  // 创建时间
 
-    // 设置表头
-    QHeaderView *header = taskTableView->horizontalHeader();
+    QHeaderView *header = view->horizontalHeader();
     header->setDefaultAlignment(Qt::AlignCenter);
     header->setSectionResizeMode(QHeaderView::Interactive);
     header->setHighlightSections(false);
 
-    // 设置行高
-    taskTableView->verticalHeader()->setDefaultSectionSize(30);
-    taskTableView->verticalHeader()->setVisible(false);
+    view->verticalHeader()->setDefaultSectionSize(35); // 稍微高一点方便点击
+    view->verticalHeader()->setVisible(false);
+
+    connect(view, &QTableView::doubleClicked, this, &MainWindow::onTaskDoubleClicked);
 }
 
 
 void MainWindow::setupSystemTray()
 {
     trayIcon = new QSystemTrayIcon(this);
-
-    // 使用资源中的托盘图标
     QIcon trayIconResource(":/icons/tray_icon.png");
     if (trayIconResource.isNull()) {
         qDebug() << "托盘图标加载失败，使用默认图标";
@@ -556,8 +582,6 @@ void MainWindow::onTagManagerClicked()
 {
     TagManagerDialog dialog(this);
     dialog.exec();
-
-    // 标签可能被修改，刷新任务列表以更新显示
     if (taskModel) {
         taskModel->refresh();
     }
@@ -571,12 +595,24 @@ void MainWindow::onTaskDoubleClicked(const QModelIndex &index)
 
 int MainWindow::getSelectedTaskId() const
 {
-    if (!taskTableView || !taskTableView->selectionModel()->hasSelection()) {
+    QTableView *activeView = nullptr;
+
+    if (uncompletedTableView->hasFocus() || uncompletedTableView->selectionModel()->hasSelection()) {
+        activeView = uncompletedTableView;
+    } else if (completedTableView->hasFocus() || completedTableView->selectionModel()->hasSelection()) {
+        activeView = completedTableView;
+    }
+
+    if (!activeView || !activeView->selectionModel()->hasSelection()) {
         return -1;
     }
 
-    QModelIndex index = taskTableView->selectionModel()->selectedRows().first();
-    return taskModel->data(index, TaskModel::IdRole).toInt();
+    QModelIndex proxyIndex = activeView->selectionModel()->selectedRows().first();
+
+    QSortFilterProxyModel *proxy = qobject_cast<QSortFilterProxyModel*>(activeView->model());
+    QModelIndex sourceIndex = proxy->mapToSource(proxyIndex);
+
+    return taskModel->data(sourceIndex, TaskModel::IdRole).toInt();
 }
 
 void MainWindow::onQuickRecordClicked()
@@ -621,37 +657,22 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 void MainWindow::loadStyleSheet()
 {
     QString styleSheet;
-    // 定义基础路径，方便统一管理
-    QString basePath = "D:/Qt/TaskManagementSystem/styles/";
 
-    // 1. 加载主窗口样式
-    QString mainPath = basePath + "mainwindow.qss";
-    QFile mainFile(mainPath);
-    if (mainFile.open(QFile::ReadOnly | QFile::Text)) {
-        styleSheet += QLatin1String(mainFile.readAll());
-        mainFile.close();
-    } else {
-        qDebug() << "主窗口样式加载失败：" << mainPath;
-    }
+    // 使用资源路径加载样式表
+    QStringList stylePaths = {
+        ":/styles/mainwindow.qss",
+        ":/styles/widget.qss"
+    };
 
-    // 2. 加载对话框样式
-    QString dialogPath = basePath + "dialog.qss";
-    QFile dialogFile(dialogPath);
-    if (dialogFile.open(QFile::ReadOnly | QFile::Text)) {
-        styleSheet += "\n" + QLatin1String(dialogFile.readAll());
-        dialogFile.close();
-    } else {
-        qDebug() << "对话框样式加载失败：" << dialogPath;
-    }
-
-    // 3. 加载控件样式
-    QString widgetPath = basePath + "widget.qss";
-    QFile widgetFile(widgetPath);
-    if (widgetFile.open(QFile::ReadOnly | QFile::Text)) {
-        styleSheet += "\n" + QLatin1String(widgetFile.readAll());
-        widgetFile.close();
-    } else {
-        qDebug() << "控件样式加载失败：" << widgetPath;
+    for (const QString &path : stylePaths) {
+        QFile file(path);
+        if (file.open(QFile::ReadOnly | QFile::Text)) {
+            styleSheet += QLatin1String(file.readAll());
+            styleSheet += "\n";
+            file.close();
+        } else {
+            qDebug() << "样式加载失败：" << path;
+        }
     }
 
     // 应用样式表

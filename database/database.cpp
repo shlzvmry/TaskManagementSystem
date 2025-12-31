@@ -2,11 +2,11 @@
 #include <QVariantMap>
 #include <QVariant>
 #include <QSqlRecord>
+#include <QCoreApplication>
 
 Database::Database(QObject *parent) : QObject(parent)
 {
-    // 默认使用项目目录下的数据库
-    dbPath = "D:/Qt/TaskManagementSystem/task_management.db";
+    dbPath = QCoreApplication::applicationDirPath() + "/task_management.db";
 }
 
 Database::~Database()
@@ -34,27 +34,14 @@ QString Database::getDatabasePath() const
 
 bool Database::initDatabase()
 {
-    qDebug() << "尝试打开数据库路径:" << dbPath;
+    qDebug() << "数据库路径:" << dbPath;
 
-    // 检查文件是否存在
-    if (!QFile::exists(dbPath)) {
-        qDebug() << "数据库文件不存在:" << dbPath;
-        return false;
+    bool needCreate = !QFile::exists(dbPath);
+    if (needCreate) {
+        qDebug() << "数据库文件不存在，将自动创建";
     }
 
-    // 检查文件权限
-    QFileInfo fileInfo(dbPath);
-    if (!fileInfo.isReadable()) {
-        qDebug() << "数据库文件不可读:" << dbPath;
-        return false;
-    }
-
-    if (!fileInfo.isWritable()) {
-        qDebug() << "数据库文件不可写:" << dbPath;
-        return false;
-    }
-
-    // 先关闭之前的连接（如果有）
+    // 先关闭之前的连接
     if (db.isOpen()) {
         QString connectionName = db.connectionName();
         db.close();
@@ -62,23 +49,117 @@ bool Database::initDatabase()
         QSqlDatabase::removeDatabase(connectionName);
     }
 
-    // 创建数据库连接 - 使用默认连接名
+    // 创建数据库连接
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(dbPath);
 
     if (!db.open()) {
         qDebug() << "Database open error:" << db.lastError().text();
-        qDebug() << "数据库驱动错误:" << db.lastError().driverText();
         return false;
     }
 
     // 启用外键约束
     executeQuery("PRAGMA foreign_keys = ON");
 
-    qDebug() << "Database opened successfully at:" << dbPath;
-    qDebug() << "数据库连接名:" << db.connectionName();
+    // 如果是新数据库，创建表结构
+    if (needCreate) {
+        createTables();
+        initDefaultData();
+    }
 
+    qDebug() << "Database opened successfully";
     return true;
+}
+
+void Database::createTables()
+{
+    // 1. 任务分类表
+    executeQuery(
+        "CREATE TABLE IF NOT EXISTS task_categories ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "name TEXT NOT NULL UNIQUE, "
+        "color TEXT NOT NULL DEFAULT '#657896', "
+        "is_custom INTEGER DEFAULT 0, "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+        );
+
+    // 2. 任务标签表
+    executeQuery(
+        "CREATE TABLE IF NOT EXISTS task_tags ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "name TEXT NOT NULL UNIQUE, "
+        "color TEXT NOT NULL DEFAULT '#657896', "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+        );
+
+    // 3. 任务表
+    executeQuery(
+        "CREATE TABLE IF NOT EXISTS tasks ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "title TEXT NOT NULL, "
+        "description TEXT, "
+        "category_id INTEGER, "
+        "priority INTEGER DEFAULT 2, "
+        "status INTEGER DEFAULT 0, "
+        "start_time DATETIME, "
+        "deadline DATETIME, "
+        "remind_time DATETIME, "
+        "is_reminded INTEGER DEFAULT 0, "
+        "is_deleted INTEGER DEFAULT 0, "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+        "completed_at DATETIME, "
+        "FOREIGN KEY (category_id) REFERENCES task_categories (id))"
+        );
+
+    // 4. 任务-标签关联表
+    executeQuery(
+        "CREATE TABLE IF NOT EXISTS task_tag_relations ("
+        "task_id INTEGER NOT NULL, "
+        "tag_id INTEGER NOT NULL, "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+        "PRIMARY KEY (task_id, tag_id), "
+        "FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE, "
+        "FOREIGN KEY (tag_id) REFERENCES task_tags (id) ON DELETE CASCADE)"
+        );
+
+    // 5. 灵感记录表
+    executeQuery(
+        "CREATE TABLE IF NOT EXISTS inspirations ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "content TEXT NOT NULL, "
+        "tags TEXT, "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+        );
+
+    // 6. 用户设置表
+    executeQuery(
+        "CREATE TABLE IF NOT EXISTS user_settings ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "key TEXT NOT NULL UNIQUE, "
+        "value TEXT, "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+        );
+}
+
+void Database::initDefaultData()
+{
+    // 插入默认分类
+    QStringList defaults = {"作业", "物资增添", "个人生活", "考试", "复习安排", "工作"};
+    QStringList colors = {"#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD"};
+
+    db.transaction();
+    QSqlQuery query(db);
+    query.prepare("INSERT OR IGNORE INTO task_categories (name, color) VALUES (?, ?)");
+
+    for(int i=0; i<defaults.size(); ++i) {
+        query.addBindValue(defaults[i]);
+        query.addBindValue(colors[i % colors.size()]);
+        query.exec();
+    }
+    db.commit();
 }
 
 QSqlDatabase Database::getDatabase()
@@ -210,7 +291,7 @@ bool Database::deleteTag(int tagId)
 
     db.transaction();
 
-    // 1. 删除关联关系
+    // 删除关联关系
     QSqlQuery deleteRelationQuery(db);
     deleteRelationQuery.prepare("DELETE FROM task_tag_relations WHERE tag_id = ?");
     deleteRelationQuery.addBindValue(tagId);
@@ -221,7 +302,7 @@ bool Database::deleteTag(int tagId)
         return false;
     }
 
-    // 2. 删除标签本身
+    //删除标签本身
     QSqlQuery deleteTagQuery(db);
     deleteTagQuery.prepare("DELETE FROM task_tags WHERE id = ?");
     deleteTagQuery.addBindValue(tagId);

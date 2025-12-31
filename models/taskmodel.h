@@ -96,7 +96,7 @@ private:
     QSqlDatabase db;
     bool showingDeleted;
 
-    // 新增：标签处理辅助函数
+    // 标签处理辅助函数
     QList<int> resolveTagIds(const QStringList &tagNames, const QStringList &tagColors);
 
     void loadTasks(bool includeDeleted = false);

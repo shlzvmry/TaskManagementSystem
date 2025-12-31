@@ -14,12 +14,14 @@ SOURCES += \
     dialogs/tagmanagerdialog.cpp \
     main.cpp \
     mainwindow.cpp \
-    models/taskitem.cpp
+    models/taskitem.cpp \
+    widgets/comboboxdelegate.cpp
 
 HEADERS += \
     dialogs/tagmanagerdialog.h \
     mainwindow.h \
     models/taskitem.h\
+    widgets/comboboxdelegate.h
 
 
 #数据库模块
@@ -33,10 +35,12 @@ HEADERS += \
 SOURCES += \
     models/taskmodel.cpp \
     models/inspirationmodel.cpp \
+    models/taskfiltermodel.cpp \
 
 HEADERS += \
     models/taskmodel.h \
     models/inspirationmodel.h \
+    models/taskfiltermodel.h \
 
 #对话框模块
 SOURCES += \
@@ -65,11 +69,6 @@ HEADERS += \
     widgets/prioritywidget.h \
     widgets/statuswidget.h \
 
-#样式表文件
-DISTFILES += \
-    styles/mainwindow.qss \
-    styles/widget.qss \
-
 # 包含路径
 INCLUDEPATH += \
     $$PWD/database \
@@ -84,5 +83,4 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 RESOURCES += \
-    resources/icons.qrc \
-    resources/images.qrc\
+    resources/resources.qrc \

@@ -5,8 +5,6 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-
-    // 设置应用程序图标和信息
     a.setWindowIcon(QIcon(":/icons/tray_icon.png"));
     a.setApplicationName("个人工作与任务管理系统");
     a.setApplicationVersion("1.0.0");

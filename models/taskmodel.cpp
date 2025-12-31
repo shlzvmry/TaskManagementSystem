@@ -4,7 +4,7 @@
 #include <QSqlError>
 #include <QDebug>
 
-// 辅助函数：获取数据库连接
+// 获取数据库连接
 static QSqlDatabase getDbConnection()
 {
     QSqlDatabase db = Database::instance().getDatabase();
@@ -159,7 +159,7 @@ QList<int> TaskModel::resolveTagIds(const QStringList &tagNames, const QStringLi
         QString name = tagNames[i];
         QString color = (i < tagColors.size()) ? tagColors[i] : "#657896";
 
-        // 1. 尝试查找现有标签
+        // 尝试查找现有标签
         QSqlQuery checkQuery(db);
         checkQuery.prepare("SELECT id FROM task_tags WHERE name = ?");
         checkQuery.addBindValue(name);
@@ -167,7 +167,7 @@ QList<int> TaskModel::resolveTagIds(const QStringList &tagNames, const QStringLi
         if (checkQuery.exec() && checkQuery.next()) {
             tagIds.append(checkQuery.value(0).toInt());
         } else {
-            // 2. 如果不存在，创建新标签
+            // 如果不存在，创建新标签
             QSqlQuery insertQuery(db);
             insertQuery.prepare("INSERT INTO task_tags (name, color) VALUES (?, ?)");
             insertQuery.addBindValue(name);
@@ -180,21 +180,57 @@ QList<int> TaskModel::resolveTagIds(const QStringList &tagNames, const QStringLi
     return tagIds;
 }
 
+bool TaskModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if (!index.isValid() || index.row() >= tasks.size())
+        return false;
+
+    // 获取任务ID
+    int taskId = tasks[index.row()].id;
+
+    // 准备更新数据
+    QVariantMap taskData = tasks[index.row()].toVariantMap();
+    bool changed = false;
+
+    if (role == PriorityRole || (index.column() == 3 && role == Qt::EditRole)) {
+        taskData["priority"] = value.toInt();
+        changed = true;
+    }
+    else if (role == StatusRole || (index.column() == 4 && role == Qt::EditRole)) {
+        int newStatus = value.toInt();
+        taskData["status"] = newStatus;
+
+        // 如果状态变为已完成，自动设置完成时间
+        if (newStatus == 2) {
+            taskData["completed_at"] = QDateTime::currentDateTime();
+        } else {
+            taskData["completed_at"] = QVariant(); // 清空完成时间
+        }
+        changed = true;
+    }
+
+    if (changed) {
+        // 调用现有的 updateTask 方法更新数据库和内存
+        return updateTask(taskId, taskData);
+    }
+
+    return false;
+}
+
+// 还需要修改 flags 函数，允许编辑
 Qt::ItemFlags TaskModel::flags(const QModelIndex &index) const
 {
     if (!index.isValid())
         return Qt::NoItemFlags;
 
-    return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
-}
+    Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 
-bool TaskModel::setData(const QModelIndex &index, const QVariant &value, int role)
-{
-    Q_UNUSED(index);
-    Q_UNUSED(value);
-    Q_UNUSED(role);
-    // 暂时不实现，后续再完善
-    return false;
+    // 允许优先级(3)和状态(4)列进行编辑
+    if (index.column() == 3 || index.column() == 4) {
+        flags |= Qt::ItemIsEditable;
+    }
+
+    return flags;
 }
 
 void TaskModel::refresh(bool showDeleted)
@@ -602,7 +638,7 @@ bool TaskModel::permanentDeleteTask(int taskId)
     db.transaction();
 
     try {
-        // 1. 先删除任务标签关联
+        // 先删除任务标签关联
         QSqlQuery deleteTagsQuery(db);
         deleteTagsQuery.prepare("DELETE FROM task_tag_relations WHERE task_id = ?");
         deleteTagsQuery.addBindValue(taskId);
@@ -613,7 +649,7 @@ bool TaskModel::permanentDeleteTask(int taskId)
             return false;
         }
 
-        // 2. 删除任务本身
+        // 删除任务本身
         QSqlQuery deleteTaskQuery(db);
         deleteTaskQuery.prepare("DELETE FROM tasks WHERE id = ?");
         deleteTaskQuery.addBindValue(taskId);
