@@ -8,6 +8,7 @@
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <QTableView>
+#include <QSplitter>
 
 // 前向声明
 class TaskModel;
@@ -15,6 +16,7 @@ class InspirationModel;
 class WatermarkWidget;
 class TaskDialog;
 class RecycleBinDialog;
+class TaskFilterModel;
 
 class MainWindow : public QMainWindow
 {
@@ -63,9 +65,16 @@ private:
 
     // 视图组件
     QTableView *taskTableView;
+    QSplitter *taskSplitter;
+    QTableView *uncompletedTableView;
+    QTableView *completedTableView;
 
     //对话框
     RecycleBinDialog *recycleBinDialog;
+
+    // 代理模型
+    TaskFilterModel *uncompletedProxyModel;
+    TaskFilterModel *completedProxyModel;
 
     // 初始化函数
     void setupSystemTray();
@@ -73,7 +82,7 @@ private:
     void createWatermark();
     void loadStyleSheet();
     void setupConnections();
-    void setupTaskTableView();
+    void setupTaskTableView(QTableView *view, QAbstractItemModel *model);
 
     // 创建各个Tab页
     void createTaskTab();

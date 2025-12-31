@@ -170,7 +170,7 @@
          <string>color: #888888; font-size: 11px;</string>
         </property>
         <property name="text">
-         <string>已选标签 (滚轮横向查看，点击移除):</string>
+         <string>已选标签 (点击移除，滚轮横向查看):</string>
         </property>
        </widget>
       </item>

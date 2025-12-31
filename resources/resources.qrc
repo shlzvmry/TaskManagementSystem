@@ -7,5 +7,8 @@
         <file>icons/recycle_icon.png</file>
         <file>icons/refresh_icon.png</file>
         <file>icons/tray_icon.png</file>
+        
+        <file alias="styles/mainwindow.qss">../styles/mainwindow.qss</file>
+        <file alias="styles/widget.qss">../styles/widget.qss</file>
     </qresource>
 </RCC>

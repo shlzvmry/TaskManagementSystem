@@ -58,6 +58,11 @@ private:
     Database(const Database&) = delete;
     Database& operator=(const Database&) = delete;
 
+    // 初始化表结构
+    void createTables();
+    // 初始化默认数据
+    void initDefaultData();
+
     QSqlDatabase db;
     QString dbPath;
 };
