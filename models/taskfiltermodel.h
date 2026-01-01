@@ -17,6 +17,14 @@ public:
     };
 
     explicit TaskFilterModel(QObject *parent = nullptr);
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+
+    // 显式转发拖拽相关的权限和动作
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    Qt::DropActions supportedDropActions() const override;
+    Qt::DropActions supportedDragActions() const override;
+    QStringList mimeTypes() const override;
+    QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
     // 设置过滤条件
     void setFilterMode(FilterMode mode);

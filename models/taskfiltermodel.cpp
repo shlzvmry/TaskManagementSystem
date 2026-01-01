@@ -2,6 +2,7 @@
 #include "models/taskmodel.h"
 #include <QDateTime>
 #include <QDebug>
+#include <QMimeData>
 
 TaskFilterModel::TaskFilterModel(QObject *parent)
     : QSortFilterProxyModel(parent)
@@ -137,4 +138,58 @@ bool TaskFilterModel::lessThan(const QModelIndex &source_left, const QModelIndex
     }
 
     return QSortFilterProxyModel::lessThan(source_left, source_right);
+}
+
+QVariant TaskFilterModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    // 如果是水平表头，且是显示角色
+    if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
+        // 如果是"已完成"模式，且是第7列(最后一列)
+        if (m_mode == FilterCompleted && section == 7) {
+            return "完成时间";
+        }
+    }
+    // 其他情况调用父类默认实现
+    return QSortFilterProxyModel::headerData(section, orientation, role);
+}
+
+Qt::ItemFlags TaskFilterModel::flags(const QModelIndex &index) const
+{
+    if (!index.isValid())
+        return Qt::NoItemFlags | Qt::ItemIsDropEnabled;
+
+    return QSortFilterProxyModel::flags(index);
+}
+
+Qt::DropActions TaskFilterModel::supportedDropActions() const
+{
+    if (sourceModel())
+        return sourceModel()->supportedDropActions();
+    return Qt::CopyAction | Qt::MoveAction;
+}
+
+Qt::DropActions TaskFilterModel::supportedDragActions() const
+{
+    if (sourceModel())
+        return sourceModel()->supportedDragActions();
+    return Qt::CopyAction | Qt::MoveAction;
+}
+
+QStringList TaskFilterModel::mimeTypes() const
+{
+    if (sourceModel())
+        return sourceModel()->mimeTypes();
+    return QStringList();
+}
+
+QMimeData *TaskFilterModel::mimeData(const QModelIndexList &indexes) const
+{
+    if (sourceModel()) {
+        QModelIndexList sourceIndexes;
+        for (const QModelIndex &index : indexes) {
+            sourceIndexes << mapToSource(index);
+        }
+        return sourceModel()->mimeData(sourceIndexes);
+    }
+    return nullptr;
 }

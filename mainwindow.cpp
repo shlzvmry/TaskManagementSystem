@@ -10,6 +10,7 @@
 #include "widgets/comboboxdelegate.h"
 #include "views/kanbanview.h"
 #include "views/calenderview.h"
+#include "views/tasktableview.h"
 
 #include <QStackedWidget>
 #include <QComboBox>
@@ -213,15 +214,52 @@ void MainWindow::createTaskTab()
     completedProxyModel->setSourceModel(taskModel);
     completedProxyModel->setFilterMode(TaskFilterModel::FilterCompleted);
 
-    uncompletedTableView = new QTableView(taskSplitter);
-    setupTaskTableView(uncompletedTableView, uncompletedProxyModel);
+    uncompletedTableView = new TaskTableView(taskSplitter);
+    uncompletedTableView->setObjectName("uncompletedTableView");
+    uncompletedTableView->setModel(uncompletedProxyModel); // setModel 会自动配置列宽和代理
 
-    completedTableView = new QTableView(taskSplitter);
-    setupTaskTableView(completedTableView, completedProxyModel);
+    // 连接双击编辑信号
+    connect(uncompletedTableView, &TaskTableView::editTaskRequested,
+            this, &MainWindow::onEditTask);
+
+    QWidget *bottomContainer = new QWidget(taskSplitter);
+    QVBoxLayout *bottomLayout = new QVBoxLayout(bottomContainer);
+    bottomLayout->setContentsMargins(0, 0, 0, 0);
+    bottomLayout->setSpacing(0);
+
+    // 创建醒目的横条按钮
+    QPushButton *separatorBtn = new QPushButton(bottomContainer);
+    separatorBtn->setObjectName("completedSeparatorBtn");
+    separatorBtn->setCursor(Qt::PointingHandCursor);
+    separatorBtn->setFixedHeight(7);
+    separatorBtn->setFlat(true);
+
+    // 创建已完成列表
+    completedTableView = new TaskTableView(bottomContainer);
+    completedTableView->setObjectName("completedTableView");
+    completedTableView->setModel(completedProxyModel);
+
+    // 连接双击编辑信号
+    connect(completedTableView, &TaskTableView::editTaskRequested,
+            this, &MainWindow::onEditTask);
+
+    // 已完成列表的特殊设置 (隐藏表头等)
     completedTableView->horizontalHeader()->hide();
+    completedTableView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    completedTableView->setFrameShape(QFrame::NoFrame);
 
+    // 点击横条切换表头显示
+    connect(separatorBtn, &QPushButton::clicked, [this]() {
+        bool isVisible = completedTableView->horizontalHeader()->isVisible();
+        completedTableView->horizontalHeader()->setVisible(!isVisible);
+    });
+
+    bottomLayout->addWidget(separatorBtn);
+    bottomLayout->addWidget(completedTableView);
+
+    // 将未完成列表和底部容器加入分割器
     taskSplitter->addWidget(uncompletedTableView);
-    taskSplitter->addWidget(completedTableView);
+    taskSplitter->addWidget(bottomContainer);
     taskSplitter->setStretchFactor(0, 7);
     taskSplitter->setStretchFactor(1, 3);
 
@@ -230,6 +268,9 @@ void MainWindow::createTaskTab()
     // 视图2: 看板视图
     kanbanView = new KanbanView(taskTab);
     kanbanView->setModel(taskModel);
+
+    // 连接看板视图的编辑信号
+    connect(kanbanView, &KanbanView::editTaskRequested, this, &MainWindow::onEditTask);
 
     // 视图3: 日历视图
     calendarView = new CalendarView(taskTab);
@@ -242,7 +283,31 @@ void MainWindow::createTaskTab()
 
     // 底部视图切换栏
     QHBoxLayout *viewSwitchLayout = new QHBoxLayout();
-    QButtonGroup *viewGroup = new QButtonGroup(taskTab);
+
+    // --- 看板分组切换按钮 ---
+    kanbanGroupBtn = new QPushButton("分组: 状态", taskTab);
+    kanbanGroupBtn->setObjectName("kanbanGroupBtn");
+    kanbanGroupBtn->setCursor(Qt::PointingHandCursor);
+    kanbanGroupBtn->setFixedWidth(110);
+    kanbanGroupBtn->setVisible(false); // 默认隐藏
+
+    // 点击切换分组模式
+    connect(kanbanGroupBtn, &QPushButton::clicked, this, [this](){
+        if (!kanbanView) return;
+
+        // 获取当前模式并取反
+        if (kanbanView->getGroupMode() == KanbanView::GroupByStatus) {
+            kanbanView->setGroupMode(KanbanView::GroupByPriority);
+            kanbanGroupBtn->setText("分组: 优先级");
+        } else {
+            kanbanView->setGroupMode(KanbanView::GroupByStatus);
+            kanbanGroupBtn->setText("分组: 状态");
+        }
+    });
+
+    viewSwitchLayout->addWidget(kanbanGroupBtn);
+
+    QButtonGroup *viewGroup = new QButtonGroup(taskTab); // 补回这一行声明
 
     QPushButton *listViewBtn = new QPushButton("列表视图", taskTab);
     listViewBtn->setCheckable(true);
@@ -267,8 +332,14 @@ void MainWindow::createTaskTab()
     viewSwitchLayout->addWidget(calendarViewBtn);
     viewSwitchLayout->addStretch();
 
-    // 连接视图切换
-    connect(viewGroup, &QButtonGroup::idClicked, viewStack, &QStackedWidget::setCurrentIndex);
+    // 连接视图切换 (同时控制按钮的显示/隐藏)
+    connect(viewGroup, &QButtonGroup::idClicked, this, [this](int id){
+        viewStack->setCurrentIndex(id);
+        // 只有在看板视图(id=1)时才显示分组按钮
+        if (kanbanGroupBtn) {
+            kanbanGroupBtn->setVisible(id == 1);
+        }
+    });
 
     // 连接过滤器
     auto updateFilters = [this]() {
@@ -296,49 +367,6 @@ void MainWindow::createTaskTab()
 
     tabWidget->addTab(taskTab, "任务管理");
 }
-
-void MainWindow::setupTaskTableView(QTableView *view, QAbstractItemModel *model)
-{
-    if (!view || !model) return;
-
-    view->setModel(model);
-    view->setSelectionBehavior(QAbstractItemView::SelectRows);
-    view->setSelectionMode(QAbstractItemView::SingleSelection);
-    view->setAlternatingRowColors(true);
-    view->setSortingEnabled(true);
-
-    // 允许点击触发编辑
-    view->setEditTriggers(QAbstractItemView::AllEditTriggers);
-
-    // 应用自定义代理
-    ComboBoxDelegate *delegate = new ComboBoxDelegate(this);
-    view->setItemDelegateForColumn(3, delegate); // 优先级列
-    view->setItemDelegateForColumn(4, delegate); // 状态列
-
-    view->sortByColumn(5, Qt::AscendingOrder);
-
-    // 设置列宽
-    view->horizontalHeader()->setStretchLastSection(true);
-    view->setColumnWidth(0, 50);   // ID
-    view->setColumnWidth(1, 200);  // 标题
-    view->setColumnWidth(2, 100);  // 分类
-    view->setColumnWidth(3, 80);   // 优先级
-    view->setColumnWidth(4, 80);   // 状态
-    view->setColumnWidth(5, 180);  // 截止时间
-    view->setColumnWidth(6, 180);  // 提醒时间
-    view->setColumnWidth(7, 140);  // 创建时间
-
-    QHeaderView *header = view->horizontalHeader();
-    header->setDefaultAlignment(Qt::AlignCenter);
-    header->setSectionResizeMode(QHeaderView::Interactive);
-    header->setHighlightSections(false);
-
-    view->verticalHeader()->setDefaultSectionSize(35);
-    view->verticalHeader()->setVisible(false);
-
-    connect(view, &QTableView::doubleClicked, this, &MainWindow::onTaskDoubleClicked);
-}
-
 
 void MainWindow::setupSystemTray()
 {
@@ -576,6 +604,29 @@ void MainWindow::onEditTaskClicked()
     }
 }
 
+void MainWindow::onEditTask(int taskId)
+{
+    if (taskId <= 0) return;
+
+    QVariantMap taskData = taskModel->getTask(taskId);
+    if (taskData.isEmpty()) {
+        QMessageBox::warning(this, "错误", "获取任务信息失败");
+        return;
+    }
+
+    TaskDialog dialog(taskData, this);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QVariantMap updatedData = dialog.getTaskData();
+
+        if (taskModel->updateTask(taskId, updatedData)) {
+            updateStatusBar("任务更新成功");
+        } else {
+            QMessageBox::warning(this, "错误", "更新任务失败");
+        }
+    }
+}
+
 void MainWindow::onDeleteTaskClicked()
 {
     int taskId = getSelectedTaskId();
@@ -628,7 +679,8 @@ void MainWindow::onTaskDoubleClicked(const QModelIndex &index)
 
 int MainWindow::getSelectedTaskId() const
 {
-    QTableView *activeView = nullptr;
+    // 修改类型为 TaskTableView
+    TaskTableView *activeView = nullptr;
 
     if (uncompletedTableView->hasFocus() || uncompletedTableView->selectionModel()->hasSelection()) {
         activeView = uncompletedTableView;
@@ -643,6 +695,9 @@ int MainWindow::getSelectedTaskId() const
     QModelIndex proxyIndex = activeView->selectionModel()->selectedRows().first();
 
     QSortFilterProxyModel *proxy = qobject_cast<QSortFilterProxyModel*>(activeView->model());
+    // 增加空指针检查
+    if (!proxy) return -1;
+
     QModelIndex sourceIndex = proxy->mapToSource(proxyIndex);
 
     return taskModel->data(sourceIndex, TaskModel::IdRole).toInt();

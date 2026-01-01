@@ -17,6 +17,7 @@ class WatermarkWidget;
 class TaskDialog;
 class RecycleBinDialog;
 class TaskFilterModel;
+class TaskTableView;
 
 class MainWindow : public QMainWindow
 {
@@ -51,6 +52,7 @@ private slots:
 
     //标签管理
     void onTagManagerClicked();
+    void onEditTask(int taskId);
 
 private:
     // UI组件
@@ -66,8 +68,8 @@ private:
     // 视图组件
     QTableView *taskTableView;
     QSplitter *taskSplitter;
-    QTableView *uncompletedTableView;
-    QTableView *completedTableView;
+    TaskTableView *uncompletedTableView; // 原 QTableView *uncompletedTableView;
+    TaskTableView *completedTableView;
 
     // 新增视图
     class KanbanView *kanbanView;
@@ -78,6 +80,7 @@ private:
     class QComboBox *filterCategoryCombo;
     class QComboBox *filterPriorityCombo;
     class QLineEdit *searchEdit;
+    class QPushButton *kanbanGroupBtn;
 
     //对话框
     RecycleBinDialog *recycleBinDialog;
@@ -92,7 +95,6 @@ private:
     void createWatermark();
     void loadStyleSheet();
     void setupConnections();
-    void setupTaskTableView(QTableView *view, QAbstractItemModel *model);
 
     // 创建各个Tab页
     void createTaskTab();

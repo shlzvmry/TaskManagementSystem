@@ -66,6 +66,11 @@ void TaskDialog::setupUI()
     setModal(true);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
+    ui->textEditDescription->setMaximumHeight(16777215);
+    ui->textEditDescription->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    this->resize(500, 580);
+
     // 初始化优先级和状态控件
     m_priorityWidget = new PriorityWidget(this);
     m_statusWidget = new StatusWidget(this);

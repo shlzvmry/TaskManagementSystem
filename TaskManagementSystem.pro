@@ -46,10 +46,12 @@ HEADERS += \
 SOURCES += \
     views/kanbanview.cpp \
     views/calenderview.cpp \
+    views/tasktableview.cpp \
 
 HEADERS += \
     views/kanbanview.h \
     views/calenderview.h \
+    views/tasktableview.h \
 
 #对话框模块
 SOURCES += \

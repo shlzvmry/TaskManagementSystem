@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>571</height>
+    <height>540</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -354,10 +354,10 @@
         <property name="enabled">
          <bool>true</bool>
         </property>
-        <property name="maximumSize">
+        <property name="minimumSize">
          <size>
-          <width>16777215</width>
-          <height>70</height>
+          <width>0</width>
+          <height>40</height>
          </size>
         </property>
         <property name="placeholderText">

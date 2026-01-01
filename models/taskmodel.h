@@ -6,6 +6,7 @@
 #include <QList>
 #include <QColor>
 #include <QSqlRecord>
+#include <QMimeData>
 #include "taskitem.h"
 
 class TaskModel : public QAbstractTableModel
@@ -48,8 +49,16 @@ public:
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+
     Qt::ItemFlags flags(const QModelIndex &index) const override;
+    Qt::DropActions supportedDropActions() const override;
+    Qt::DropActions supportedDragActions() const override;
+
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
+
+    QStringList mimeTypes() const override;
+    QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
     // 自定义操作
     bool addTask(const QVariantMap &taskData);
@@ -58,6 +67,7 @@ public:
     bool restoreTask(int taskId);
     QVariantMap getTask(int taskId) const;
     bool permanentDeleteTask(int taskId);
+
     // 排序接口
     void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
 
@@ -96,7 +106,6 @@ private:
     QSqlDatabase db;
     bool showingDeleted;
 
-    // 标签处理辅助函数
     QList<int> resolveTagIds(const QStringList &tagNames, const QStringList &tagColors);
 
     void loadTasks(bool includeDeleted = false);

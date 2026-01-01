@@ -23,19 +23,21 @@ class KanbanColumn : public QListView
 {
     Q_OBJECT
 public:
-    explicit KanbanColumn(int status, QWidget *parent = nullptr);
-    int getStatus() const { return m_status; }
+    explicit KanbanColumn(int value, QWidget *parent = nullptr);
+    int getValue() const { return m_value; }
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void startDrag(Qt::DropActions supportedActions) override;
 
 signals:
-    void taskDropped(int taskId, int newStatus);
+    void taskDropped(int taskId, int newValue);
+    void taskDoubleClicked(int taskId);
 
 private:
-    int m_status;
+    int m_value;
 };
 
 // 看板主视图
@@ -43,17 +45,26 @@ class KanbanView : public QWidget
 {
     Q_OBJECT
 public:
+    enum GroupMode { GroupByStatus, GroupByPriority };
+
     explicit KanbanView(QWidget *parent = nullptr);
     void setModel(TaskModel *model);
+    void setGroupMode(GroupMode mode);
+    GroupMode getGroupMode() const { return m_groupMode; }
+
+signals:
+    void editTaskRequested(int taskId);
 
 private:
     TaskModel *m_model;
-    QHBoxLayout *m_layout;
+    class QHBoxLayout *m_columnLayout;
     QList<KanbanColumn*> m_columns;
     QList<TaskFilterModel*> m_filters;
+    GroupMode m_groupMode;
 
     void setupUI();
-    KanbanColumn* createColumn(const QString &title, int status, const QString &color);
+    KanbanColumn* createColumn(const QString &title, int value, const QString &color);
+    void refreshColumns();
 };
 
 #endif // KANBANVIEW_H
