@@ -11,6 +11,8 @@
 #include "views/kanbanview.h"
 #include "views/calenderview.h"
 #include "views/tasktableview.h"
+#include "views/inspirationview.h"
+#include "dialogs/inspirationdialog.h"
 
 #include <QStackedWidget>
 #include <QComboBox>
@@ -34,6 +36,9 @@
 #include <QButtonGroup>
 #include <QShortcut>
 #include <QKeySequence>
+#include <QListWidget>
+#include <QMouseEvent>
+#include <QTableWidget>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -180,15 +185,15 @@ void MainWindow::createTaskTab()
     toolbarLayout->addStretch();
 
     QPushButton *recycleBinBtn = new QPushButton("回收站", taskTab);
-    recycleBinBtn->setObjectName("recycleBinBtn");
+    recycleBinBtn->setObjectName("taskRecycleBinBtn");
     recycleBinBtn->setIcon(QIcon(":/icons/recycle_icon.png"));
 
     QPushButton *tagManagerBtn = new QPushButton("标签管理", taskTab);
-    tagManagerBtn->setObjectName("tagManagerBtn");
+    tagManagerBtn->setObjectName("taskTagManagerBtn");
     tagManagerBtn->setIcon(QIcon(":/icons/edit_icon.png"));
 
     QPushButton *refreshBtn = new QPushButton("刷新", taskTab);
-    refreshBtn->setObjectName("refreshBtn");
+    refreshBtn->setObjectName("taskRefreshBtn");
     refreshBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
 
     toolbarLayout->addWidget(recycleBinBtn);
@@ -275,27 +280,38 @@ void MainWindow::createTaskTab()
     // 视图3: 日历视图
     calendarView = new CalendarView(taskTab);
     calendarView->setTaskModel(taskModel);
+    calendarView->setInspirationModel(inspirationModel);
 
     // 添加到 Stack
     viewStack->addWidget(listViewWidget); // Index 0
     viewStack->addWidget(kanbanView);     // Index 1
     viewStack->addWidget(calendarView);   // Index 2
 
-    // 底部视图切换栏
-    QHBoxLayout *viewSwitchLayout = new QHBoxLayout();
+    // 连接日历点击信号
+    connect(calendarView, &CalendarView::showInspirations, this, &MainWindow::onCalendarShowInspirations);
+    connect(calendarView, &CalendarView::showTasks, this, &MainWindow::onCalendarShowTasks);
 
-    // --- 看板分组切换按钮 ---
-    kanbanGroupBtn = new QPushButton("分组: 状态", taskTab);
+    // 底部视图切换栏
+    QHBoxLayout *bottomBarLayout = new QHBoxLayout();
+
+    // 1. 左侧容器 (固定宽度，确保与右侧占位符对称)
+    QWidget *leftContainer = new QWidget(taskTab);
+    leftContainer->setFixedWidth(110);
+    QHBoxLayout *leftContainerLayout = new QHBoxLayout(leftContainer);
+    leftContainerLayout->setContentsMargins(0, 0, 0, 0);
+
+    // 看板分组切换按钮 (放入左侧容器)
+    kanbanGroupBtn = new QPushButton("分组: 状态", leftContainer);
     kanbanGroupBtn->setObjectName("kanbanGroupBtn");
     kanbanGroupBtn->setCursor(Qt::PointingHandCursor);
-    kanbanGroupBtn->setFixedWidth(110);
+    // 按钮填满容器或自适应，容器本身限制了宽度
+    kanbanGroupBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     kanbanGroupBtn->setVisible(false); // 默认隐藏
 
-    // 点击切换分组模式
+    leftContainerLayout->addWidget(kanbanGroupBtn);
+
     connect(kanbanGroupBtn, &QPushButton::clicked, this, [this](){
         if (!kanbanView) return;
-
-        // 获取当前模式并取反
         if (kanbanView->getGroupMode() == KanbanView::GroupByStatus) {
             kanbanView->setGroupMode(KanbanView::GroupByPriority);
             kanbanGroupBtn->setText("分组: 优先级");
@@ -305,10 +321,8 @@ void MainWindow::createTaskTab()
         }
     });
 
-    viewSwitchLayout->addWidget(kanbanGroupBtn);
-
-    QButtonGroup *viewGroup = new QButtonGroup(taskTab); // 补回这一行声明
-
+    // 2. 中间：视图切换按钮组
+    QButtonGroup *viewGroup = new QButtonGroup(taskTab);
     QPushButton *listViewBtn = new QPushButton("列表视图", taskTab);
     listViewBtn->setCheckable(true);
     listViewBtn->setChecked(true);
@@ -326,16 +340,25 @@ void MainWindow::createTaskTab()
     viewGroup->addButton(kanbanViewBtn, 1);
     viewGroup->addButton(calendarViewBtn, 2);
 
-    viewSwitchLayout->addStretch();
-    viewSwitchLayout->addWidget(listViewBtn);
-    viewSwitchLayout->addWidget(kanbanViewBtn);
-    viewSwitchLayout->addWidget(calendarViewBtn);
-    viewSwitchLayout->addStretch();
+    QHBoxLayout *centerBtnLayout = new QHBoxLayout();
+    centerBtnLayout->addWidget(listViewBtn);
+    centerBtnLayout->addWidget(kanbanViewBtn);
+    centerBtnLayout->addWidget(calendarViewBtn);
 
-    // 连接视图切换 (同时控制按钮的显示/隐藏)
+    // 3. 右侧：占位控件 (宽度与左侧容器一致，保证中间绝对居中)
+    QWidget *dummyRight = new QWidget(taskTab);
+    dummyRight->setFixedWidth(110);
+
+    // 组装底部栏： [左侧容器] [弹簧] [中间按钮组] [弹簧] [右侧占位]
+    bottomBarLayout->addWidget(leftContainer);
+    bottomBarLayout->addStretch();
+    bottomBarLayout->addLayout(centerBtnLayout);
+    bottomBarLayout->addStretch();
+    bottomBarLayout->addWidget(dummyRight);
+
+    // 连接视图切换
     connect(viewGroup, &QButtonGroup::idClicked, this, [this](int id){
         viewStack->setCurrentIndex(id);
-        // 只有在看板视图(id=1)时才显示分组按钮
         if (kanbanGroupBtn) {
             kanbanGroupBtn->setVisible(id == 1);
         }
@@ -363,7 +386,7 @@ void MainWindow::createTaskTab()
     // 布局组装
     layout->addLayout(toolbarLayout);
     layout->addWidget(viewStack, 1);
-    layout->addLayout(viewSwitchLayout);
+    layout->addLayout(bottomBarLayout);
 
     tabWidget->addTab(taskTab, "任务管理");
 }
@@ -395,25 +418,17 @@ void MainWindow::createInspirationTab()
 {
     QWidget *inspirationTab = new QWidget();
     QVBoxLayout *layout = new QVBoxLayout(inspirationTab);
+    layout->setContentsMargins(0, 0, 0, 0);
 
-    // 快速记录区域
-    QHBoxLayout *quickRecordLayout = new QHBoxLayout();
-    QLabel *recordLabel = new QLabel("快速记录灵感：", inspirationTab);
-    QPushButton *quickRecordBtn = new QPushButton("+ 记录灵感", inspirationTab);
-    quickRecordBtn->setObjectName("quickRecordBtn");
+    // 实例化灵感视图
+    InspirationView *inspirationView = new InspirationView(inspirationTab);
+    inspirationView->setModel(inspirationModel);
+    inspirationView->setTaskModel(taskModel);
 
-    quickRecordLayout->addWidget(recordLabel);
-    quickRecordLayout->addWidget(quickRecordBtn);
-    quickRecordLayout->addStretch();
+    connect(inspirationView, &InspirationView::showInspirationsRequested, this, &MainWindow::onCalendarShowInspirations);
+    connect(inspirationView, &InspirationView::showTasksRequested, this, &MainWindow::onCalendarShowTasks);
 
-    // 灵感列表区域
-    QLabel *listLabel = new QLabel("灵感记录将显示在这里", inspirationTab);
-    listLabel->setObjectName("inspirationListLabel");
-    listLabel->setAlignment(Qt::AlignCenter);
-    listLabel->setMinimumHeight(400);
-
-    layout->addLayout(quickRecordLayout);
-    layout->addWidget(listLabel, 1);
+    layout->addWidget(inspirationView);
 
     tabWidget->addTab(inspirationTab, "灵感记录");
 }
@@ -466,24 +481,24 @@ void MainWindow::setupConnections()
         connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::onDeleteTaskClicked);
     }
 
-    QPushButton *refreshBtn = findChild<QPushButton*>("refreshBtn");
-    if (refreshBtn) {
-        connect(refreshBtn, &QPushButton::clicked, this, &MainWindow::onRefreshTasksClicked);
-    }
-
     QPushButton *quickRecordBtn = findChild<QPushButton*>("quickRecordBtn");
     if (quickRecordBtn) {
         connect(quickRecordBtn, &QPushButton::clicked, this, &MainWindow::onQuickRecordClicked);
     }
 
-    QPushButton *recycleBinBtn = findChild<QPushButton*>("recycleBinBtn");
+    QPushButton *recycleBinBtn = findChild<QPushButton*>("taskRecycleBinBtn");
     if (recycleBinBtn) {
         connect(recycleBinBtn, &QPushButton::clicked, this, &MainWindow::onRecycleBinClicked);
     }
 
-    QPushButton *tagManagerBtn = findChild<QPushButton*>("tagManagerBtn");
+    QPushButton *tagManagerBtn = findChild<QPushButton*>("taskTagManagerBtn");
     if (tagManagerBtn) {
         connect(tagManagerBtn, &QPushButton::clicked, this, &MainWindow::onTagManagerClicked);
+    }
+
+    QPushButton *refreshBtn = findChild<QPushButton*>("taskRefreshBtn");
+    if (refreshBtn) {
+        connect(refreshBtn, &QPushButton::clicked, this, &MainWindow::onRefreshTasksClicked);
     }
 
     new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R), this, SLOT(onRecycleBinClicked()));
@@ -705,8 +720,61 @@ int MainWindow::getSelectedTaskId() const
 
 void MainWindow::onQuickRecordClicked()
 {
-    QMessageBox::information(this, "功能开发中", "快速记录灵感功能将在灵感记录模块实现");
-    updateStatusBar("准备记录灵感...");
+    InspirationDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        QVariantMap data = dialog.getData();
+        if (inspirationModel->addInspiration(data["content"].toString(), data["tags"].toString())) {
+            updateStatusBar("灵感记录成功！");
+            // 如果当前在灵感Tab，视图会自动刷新
+        } else {
+            QMessageBox::warning(this, "错误", "记录失败");
+        }
+    }
+}
+
+void MainWindow::onCalendarDateClicked(const QDate &date)
+{
+    // 查询该日期的灵感
+    QList<QVariantMap> inspirations = inspirationModel->getInspirationsByDate(date);
+
+    if (inspirations.isEmpty()) {
+        return;
+    }
+
+    // 创建简单的查看对话框
+    QDialog dlg(this);
+    dlg.setWindowTitle(QString("灵感记录 - %1").arg(date.toString("MM月dd日")));
+    dlg.resize(400, 500);
+    dlg.setWindowFlags(dlg.windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dlg);
+
+    QListWidget *listWidget = new QListWidget(&dlg);
+    listWidget->setAlternatingRowColors(true);
+    listWidget->setStyleSheet("QListWidget { border: 1px solid #3d3d3d; background-color: #2d2d2d; } "
+                              "QListWidget::item { padding: 10px; border-bottom: 1px solid #3d3d3d; }");
+
+    for (const QVariantMap &data : inspirations) {
+        QString timeStr = data["created_at"].toDateTime().toString("HH:mm");
+        QString content = data["content"].toString();
+        QString tags = data["tags"].toString();
+
+        QString displayText = QString("[%1] %2").arg(timeStr, content);
+        if (!tags.isEmpty()) {
+            displayText += QString("\n标签: %1").arg(tags);
+        }
+
+        QListWidgetItem *item = new QListWidgetItem(displayText);
+        listWidget->addItem(item);
+    }
+
+    layout->addWidget(listWidget);
+
+    QPushButton *closeBtn = new QPushButton("关闭", &dlg);
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    dlg.exec();
 }
 
 void MainWindow::updateStatusBar(const QString &message)
@@ -794,4 +862,77 @@ void MainWindow::showMainWindow()
 void MainWindow::quitApplication()
 {
     qApp->quit();
+}
+
+// 灵感弹窗：长条形
+void MainWindow::onCalendarShowInspirations(const QDate &date)
+{
+    QList<QVariantMap> inspirations = inspirationModel->getInspirationsByDate(date);
+    if (inspirations.isEmpty()) return;
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(QString("灵感 - %1").arg(date.toString("MM月dd日")));
+    dlg.resize(350, 500); // 长条形
+    dlg.setWindowFlags(dlg.windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dlg);
+    QListWidget *listWidget = new QListWidget(&dlg);
+    listWidget->setAlternatingRowColors(true);
+    listWidget->setStyleSheet("QListWidget { border: none; background-color: #2d2d2d; } "
+                              "QListWidget::item { padding: 10px; border-bottom: 1px solid #3d3d3d; }");
+
+    for (const QVariantMap &data : inspirations) {
+        QString timeStr = data["created_at"].toDateTime().toString("HH:mm");
+        QString content = data["content"].toString();
+        QString tags = data["tags"].toString();
+
+        QListWidgetItem *item = new QListWidgetItem();
+        item->setText(QString("[%1] %2\n🏷️ %3").arg(timeStr, content, tags));
+        listWidget->addItem(item);
+    }
+    layout->addWidget(listWidget);
+    dlg.exec();
+}
+
+// 任务弹窗：扁平形
+void MainWindow::onCalendarShowTasks(const QDate &date)
+{
+    // 获取当天任务 (需要 TaskModel 提供接口，或者遍历)
+    // 这里简单遍历一下，实际建议在 TaskModel 加 getTasksByDate
+    QList<QVariantMap> allTasks = taskModel->getAllTasks(false);
+    QList<QVariantMap> dayTasks;
+    for(const auto &t : allTasks) {
+        if(t["deadline"].toDateTime().date() == date) {
+            dayTasks.append(t);
+        }
+    }
+
+    if (dayTasks.isEmpty()) return;
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(QString("任务 - %1").arg(date.toString("MM月dd日")));
+    dlg.resize(500, 300); // 扁平形
+    dlg.setWindowFlags(dlg.windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dlg);
+
+    QTableWidget *table = new QTableWidget(&dlg);
+    table->setColumnCount(3);
+    table->setHorizontalHeaderLabels({"ID", "标题", "截止时间"});
+    table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    table->verticalHeader()->hide();
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+    table->setRowCount(dayTasks.size());
+
+    for(int i=0; i<dayTasks.size(); ++i) {
+        const auto &t = dayTasks[i];
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(t["id"].toInt())));
+        table->setItem(i, 1, new QTableWidgetItem(t["title"].toString()));
+        table->setItem(i, 2, new QTableWidgetItem(t["deadline"].toDateTime().toString("HH:mm")));
+    }
+
+    layout->addWidget(table);
+    dlg.exec();
 }

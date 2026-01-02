@@ -45,6 +45,7 @@ private slots:
 
     // 灵感相关槽函数
     void onQuickRecordClicked();
+     void onCalendarDateClicked(const QDate &date);
 
     //回收站相关
     void onTaskRestored(int taskId);
@@ -53,6 +54,10 @@ private slots:
     //标签管理
     void onTagManagerClicked();
     void onEditTask(int taskId);
+
+    // 日历交互
+    void onCalendarShowInspirations(const QDate &date);
+    void onCalendarShowTasks(const QDate &date);
 
 private:
     // UI组件

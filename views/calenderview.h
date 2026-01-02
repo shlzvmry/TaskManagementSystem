@@ -6,6 +6,7 @@
 #include <QDate>
 
 class TaskModel;
+class QTableView;
 
 class CalendarView : public QCalendarWidget
 {
@@ -13,17 +14,30 @@ class CalendarView : public QCalendarWidget
 public:
     explicit CalendarView(QWidget *parent = nullptr);
     void setTaskModel(TaskModel *model);
+    void setInspirationModel(class InspirationModel *model);
     void refreshTasks();
+
+signals:
+    void showInspirations(const QDate &date);
+    void showTasks(const QDate &date);
 
 protected:
     void paintCell(QPainter *painter, const QRect &rect, QDate date) const override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     TaskModel *m_model;
-    QMap<QDate, int> m_taskCounts; // 日期 -> 任务数量
-    QMap<QDate, bool> m_hasUrgent; // 日期 -> 是否有紧急任务
+    class InspirationModel *m_inspirationModel;
+
+    QMap<QDate, QColor> m_taskStatusColors;
+    QList<QDate> m_inspirationDates;
+
+    // 新增：缓存用于点击检测
+    mutable QMap<QDate, QRect> m_inspRects;
+    mutable QMap<QDate, QRect> m_taskRects;
 
     void updateTaskCache();
+    QTableView* getInternalView() const; // 获取内部表格视图
 };
 
 #endif // CALENDARVIEW_H

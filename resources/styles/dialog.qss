@@ -52,3 +52,43 @@ QPushButton#existingTagBtn {
 QPushButton#existingTagBtn:hover {
     color: white;
 }
+
+/* 内容编辑框 - 模拟记事贴风格 */
+QTextEdit#inspirationContentEdit {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border: 1px solid #3d3d3d;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 14px;
+    selection-background-color: #657896;
+}
+
+QTextEdit#inspirationContentEdit:focus {
+    border: 1px solid #657896;
+}
+
+/* 标签输入框 */
+QLineEdit#inspirationTagEdit {
+    background-color: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 15px; /* 圆角风格 */
+    padding: 4px 12px;
+    color: #cccccc;
+}
+
+QLineEdit#inspirationTagEdit:focus {
+    border: 1px solid #657896;
+}
+
+/* 保存按钮高亮 */
+QPushButton#saveInspirationBtn {
+    background-color: #657896;
+    color: white;
+    font-weight: bold;
+    border: none;
+}
+
+QPushButton#saveInspirationBtn:hover {
+    background-color: #7a8ca8;
+}

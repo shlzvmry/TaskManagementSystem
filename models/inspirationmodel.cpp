@@ -36,7 +36,7 @@ int InspirationModel::rowCount(const QModelIndex &parent) const
 int InspirationModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return 4; // 时间, 内容预览, 标签, 操作
+    return 3; // 时间, 内容, 标签
 }
 
 QVariant InspirationModel::data(const QModelIndex &index, int role) const
@@ -52,7 +52,6 @@ QVariant InspirationModel::data(const QModelIndex &index, int role) const
         case 0: return item.createdAt.toString("yyyy-MM-dd HH:mm:ss");
         case 1: return item.preview();
         case 2: return item.tags;
-        case 3: return "操作";
         default: return QVariant();
         }
 
@@ -83,7 +82,6 @@ QVariant InspirationModel::headerData(int section, Qt::Orientation orientation, 
         case 0: return "记录时间";
         case 1: return "内容预览";
         case 2: return "标签";
-        case 3: return "操作";
         default: return QVariant();
         }
     }

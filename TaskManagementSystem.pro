@@ -47,24 +47,28 @@ SOURCES += \
     views/kanbanview.cpp \
     views/calenderview.cpp \
     views/tasktableview.cpp \
+    views/inspirationview.cpp
 
 HEADERS += \
     views/kanbanview.h \
     views/calenderview.h \
     views/tasktableview.h \
+    views/inspirationview.h
 
 #对话框模块
 SOURCES += \
     dialogs/taskdialog.cpp\
     dialogs/recyclebindialog.cpp\
+    dialogs/inspirationdialog.cpp \
 
 HEADERS += \
     dialogs/taskdialog.h \
     dialogs/recyclebindialog.h\
+    dialogs/inspirationdialog.h \
 
 FORMS += \
+    dialogs/inspirationdialog.ui \
     dialogs/recyclebindialog.ui \
-    dialogs/tagmanagerdialog.ui \
     dialogs/taskdialog.ui \
 
 #控件模块
@@ -79,6 +83,9 @@ HEADERS += \
     widgets/tagwidget.h \
     widgets/prioritywidget.h \
     widgets/statuswidget.h \
+
+FORMS += \
+    dialogs/tagmanagerdialog.ui \
 
 # 包含路径
 INCLUDEPATH += \
