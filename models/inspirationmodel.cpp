@@ -5,7 +5,6 @@
 #include <QDebug>
 #include <QDate>
 
-//获取数据库连接
 static QSqlDatabase getDbConnection()
 {
     QSqlDatabase db = Database::instance().getDatabase();
@@ -36,7 +35,7 @@ int InspirationModel::rowCount(const QModelIndex &parent) const
 int InspirationModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return 3; // 时间, 内容, 标签
+    return 3;
 }
 
 QVariant InspirationModel::data(const QModelIndex &index, int role) const
@@ -103,7 +102,7 @@ void InspirationModel::loadInspirations()
     inspirations.clear();
 
     QSqlQuery query(db);
-    query.prepare("SELECT * FROM inspirations ORDER BY created_at DESC");
+    query.prepare("SELECT * FROM inspirations WHERE is_deleted = 0 ORDER BY created_at DESC");
 
     if (!query.exec()) {
         qDebug() << "加载灵感记录失败:" << query.lastError().text();
@@ -175,7 +174,8 @@ bool InspirationModel::updateInspiration(int id, const QString &content, const Q
 bool InspirationModel::deleteInspiration(int id)
 {
     QSqlQuery query(db);
-    query.prepare("DELETE FROM inspirations WHERE id = ?");
+    query.prepare("UPDATE inspirations SET is_deleted = 1, updated_at = ? WHERE id = ?");
+    query.addBindValue(getCurrentTimestamp());
     query.addBindValue(id);
 
     if (!query.exec()) {
@@ -185,7 +185,6 @@ bool InspirationModel::deleteInspiration(int id)
 
     refresh();
     emit inspirationDeleted(id);
-
     return true;
 }
 
@@ -345,6 +344,45 @@ QList<QDate> InspirationModel::getDatesWithInspirations() const
     return dates;
 }
 
+QList<QDate> InspirationModel::getDatesWithInspirations(const QStringList &filterTags, bool matchAll) const
+{
+    if (filterTags.isEmpty()) {
+        return getDatesWithInspirations();
+    }
+
+    QSet<QDate> dateSet;
+
+    for (const InspirationItem &item : inspirations) {
+        QStringList itemTags = item.tagList();
+        bool match = true;
+
+        if (matchAll) {
+            for (const QString &filterTag : filterTags) {
+                if (!itemTags.contains(filterTag, Qt::CaseInsensitive)) {
+                    match = false;
+                    break;
+                }
+            }
+        } else {
+            match = false;
+            for (const QString &filterTag : filterTags) {
+                if (itemTags.contains(filterTag, Qt::CaseInsensitive)) {
+                    match = true;
+                    break;
+                }
+            }
+        }
+
+        if (match) {
+            dateSet.insert(item.createdAt.date());
+        }
+    }
+
+    QList<QDate> result = dateSet.values();
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
 QStringList InspirationModel::getAllTags() const
 {
     QStringList allTags;
@@ -377,4 +415,105 @@ void InspirationModel::refresh()
 QDateTime InspirationModel::getCurrentTimestamp() const
 {
     return QDateTime::currentDateTime();
+}
+
+bool InspirationModel::restoreInspiration(int id)
+{
+    QSqlQuery query(db);
+    query.prepare("UPDATE inspirations SET is_deleted = 0 WHERE id = ?");
+    query.addBindValue(id);
+    if (query.exec()) {
+        refresh();
+        return true;
+    }
+    return false;
+}
+
+bool InspirationModel::permanentDeleteInspiration(int id)
+{
+    QSqlQuery query(db);
+    query.prepare("DELETE FROM inspirations WHERE id = ?");
+    query.addBindValue(id);
+    return query.exec();
+}
+
+QList<QVariantMap> InspirationModel::getDeletedInspirations() const
+{
+    QList<QVariantMap> result;
+    QSqlQuery query(db);
+    query.prepare("SELECT * FROM inspirations WHERE is_deleted = 1 ORDER BY updated_at DESC");
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap item;
+            item["id"] = query.value("id");
+            item["content"] = query.value("content");
+            item["tags"] = query.value("tags");
+            item["created_at"] = query.value("created_at");
+            item["updated_at"] = query.value("updated_at");
+            result.append(item);
+        }
+    }
+    return result;
+}
+
+bool InspirationModel::emptyRecycleBin()
+{
+    QSqlQuery query(db);
+    return query.exec("DELETE FROM inspirations WHERE is_deleted = 1");
+}
+
+static QString updateTagString(const QString &tags, const QString &oldTag, const QString &newTag = QString())
+{
+    QStringList tagList = tags.split(",", Qt::SkipEmptyParts);
+    QStringList newTagList;
+    bool changed = false;
+
+    for (const QString &t : tagList) {
+        QString trimmed = t.trimmed();
+        if (trimmed == oldTag) {
+            if (!newTag.isEmpty()) {
+                newTagList.append(newTag);
+            }
+            changed = true;
+        } else {
+            newTagList.append(trimmed);
+        }
+    }
+
+    if (!changed) return tags;
+    return newTagList.join(",");
+}
+
+bool InspirationModel::renameTag(const QString &oldName, const QString &newName)
+{
+    if (oldName == newName) return false;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT id, tags FROM inspirations WHERE tags LIKE ?");
+    query.addBindValue("%" + oldName + "%");
+
+    if (!query.exec()) return false;
+
+    db.transaction();
+    while (query.next()) {
+        int id = query.value("id").toInt();
+        QString tags = query.value("tags").toString();
+        QString newTags = updateTagString(tags, oldName, newName);
+
+        if (tags != newTags) {
+            QSqlQuery updateQuery(db);
+            updateQuery.prepare("UPDATE inspirations SET tags = ? WHERE id = ?");
+            updateQuery.addBindValue(newTags);
+            updateQuery.addBindValue(id);
+            updateQuery.exec();
+        }
+    }
+    db.commit();
+    refresh();
+    return true;
+}
+
+bool InspirationModel::removeTagFromAll(const QString &tagName)
+{
+    return renameTag(tagName, "");
 }

@@ -7,13 +7,16 @@
 #include <QStackedWidget>
 #include <QButtonGroup>
 #include <QDate>
+#include <QSpinBox>
+#include <QCheckBox>
+#include <QComboBox>
 
 class InspirationModel;
 class QTableView;
 class QLineEdit;
-class QComboBox;
+class QSpinBox;
+class QCheckBox;
 
-// 1. 定义网格视图的代理，负责画出“便利贴”效果
 class InspirationGridDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
@@ -24,7 +27,6 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 };
 
-// 日历视图类声明
 class CalendarView;
 
 class InspirationView : public QWidget
@@ -34,6 +36,12 @@ class InspirationView : public QWidget
 public:
     explicit InspirationView(QWidget *parent = nullptr);
     void setModel(InspirationModel *model);
+    bool restoreInspiration(int id);
+    bool permanentDeleteInspiration(int id);
+    QList<QVariantMap> getDeletedInspirations() const;
+    bool emptyRecycleBin();
+    bool renameTag(const QString &oldName, const QString &newName);
+    bool removeTagFromAll(const QString &tagName);
 
 public slots:
     void refresh();
@@ -42,33 +50,35 @@ public slots:
 signals:
     void showRecycleBinRequested();
     void showTagManagerRequested();
-    // 新增：日历相关的信号
     void showInspirationsRequested(const QDate &date);
     void showTasksRequested(const QDate &date);
 
 private slots:
     void onSearchTextChanged(const QString &text);
-    void onTagFilterChanged(int index);
+    void onTagSearchClicked();
     void onDoubleClicked(const QModelIndex &index);
     void onAddClicked();
-    void onEditClicked(); // 新增槽函数
+    void onEditClicked();
     void onDeleteClicked();
 
 private:
     InspirationModel *m_model;
 
-    // 视图组件
-    QStackedWidget *m_viewStack;    // 新增：视图堆栈
-    QTableView *m_tableView;        // 列表视图
-    QListWidget *m_gridView;        // 新增：网格视图 (便利贴)
-    CalendarView *m_calendarView;   // 新增：日历视图
-
+    QStackedWidget *m_viewStack;
+    QTableView *m_tableView;
+    QListWidget *m_gridView;
+    CalendarView *m_calendarView;
     QLineEdit *m_searchEdit;
-    QComboBox *m_tagCombo;
-
+    QStringList m_filterTags;
+    bool m_filterMatchAll;
     void setupUI();
-    void updateTagCombo();
-    void refreshGridView();         // 新增：刷新网格数据
+    void refreshGridView();
+    void applyFilters();
+    QWidget *m_leftBottomContainer;
+    QCheckBox *m_dateFilterCheck;
+    QSpinBox *m_yearSpin;
+    QSpinBox *m_monthSpin;
+    QComboBox *m_monthFilterCombo;
 };
 
 #endif // INSPIRATIONVIEW_H

@@ -22,13 +22,11 @@ TagManagerDialog::~TagManagerDialog()
 
 void TagManagerDialog::setupUI()
 {
-    // 设置分割器比例
     ui->splitter->setStretchFactor(0, 12);
     ui->splitter->setStretchFactor(1, 23);
 
-    // 设置表格列宽
-    ui->taskTableWidget->setColumnWidth(0, 50);  // ID
-    ui->taskTableWidget->setColumnWidth(1, 280); // 标题
+    ui->taskTableWidget->setColumnWidth(0, 50);
+    ui->taskTableWidget->setColumnWidth(1, 280);
 }
 
 void TagManagerDialog::setupConnections()
@@ -50,7 +48,6 @@ void TagManagerDialog::refreshTags()
         item->setData(Qt::UserRole, tag["id"]);
         item->setData(Qt::UserRole + 1, tag["color"]);
 
-        // 设置图标颜色
         QPixmap pixmap(16, 16);
         pixmap.fill(QColor(tag["color"].toString()));
         item->setIcon(QIcon(pixmap));
@@ -70,18 +67,15 @@ void TagManagerDialog::onTagSelected(QListWidgetItem *item)
     for (int i = 0; i < tasks.size(); ++i) {
         const QVariantMap &task = tasks[i];
 
-        // ID列
         QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(task["id"].toInt()));
         idItem->setTextAlignment(Qt::AlignCenter);
         ui->taskTableWidget->setItem(i, 0, idItem);
 
-        // 标题列
         QString title = task["title"].toString();
         QTableWidgetItem *titleItem = new QTableWidgetItem(title);
         titleItem->setTextAlignment(Qt::AlignCenter);
         ui->taskTableWidget->setItem(i, 1, titleItem);
 
-        // 分类列
         QString categoryName = task["category_name"].toString();
         QTableWidgetItem *categoryItem = new QTableWidgetItem(categoryName.isEmpty() ? "未分类" : categoryName);
         categoryItem->setTextAlignment(Qt::AlignCenter);
@@ -94,7 +88,6 @@ void TagManagerDialog::onAddTagClicked()
     QString name = ui->tagNameInput->text().trimmed();
     if (name.isEmpty()) return;
 
-    // 限制标签长度
     if (name.length() > 6) {
         QMessageBox::warning(this, "格式错误", "标签名称请限制在6个字以内");
         return;
@@ -120,17 +113,14 @@ void TagManagerDialog::onDeleteTagClicked()
     int tagId = item->data(Qt::UserRole).toInt();
     QString tagName = item->text();
 
-    // 检查关联任务
     QList<QVariantMap> tasks = Database::instance().getTasksByTagId(tagId);
 
     if (tasks.isEmpty()) {
-        // 无关联，直接删除
         if (QMessageBox::question(this, "确认删除", "确定要删除标签 '" + tagName + "' 吗？") == QMessageBox::Yes) {
             Database::instance().deleteTag(tagId);
             refreshTags();
         }
     } else {
-        // 有关联，显示警告
         QString msg = QString("标签 '%1' 已关联 %2 个任务：\n\n").arg(tagName).arg(tasks.size());
         int count = 0;
         for (const QVariantMap &task : tasks) {
@@ -151,7 +141,6 @@ void TagManagerDialog::onDeleteTagClicked()
 
 void TagManagerDialog::onRemoveRelationClicked()
 {
-    // 获取当前选中的标签
     QListWidgetItem *tagItem = ui->tagListWidget->currentItem();
     if (!tagItem) {
         QMessageBox::warning(this, "提示", "请先在左侧选择一个标签");
@@ -159,24 +148,20 @@ void TagManagerDialog::onRemoveRelationClicked()
     }
     int tagId = tagItem->data(Qt::UserRole).toInt();
 
-    //获取当前选中的任务
     int currentRow = ui->taskTableWidget->currentRow();
     if (currentRow < 0) {
         QMessageBox::warning(this, "提示", "请在右侧列表中选择要解除关联的任务");
         return;
     }
 
-    // 获取任务ID (第0列)
     QTableWidgetItem *idItem = ui->taskTableWidget->item(currentRow, 0);
     if (!idItem) return;
     int taskId = idItem->text().toInt();
     QString taskTitle = ui->taskTableWidget->item(currentRow, 1)->text();
 
-    // 确认并执行
     QString msg = QString("确定要移除任务 '%1' 的 '%2' 标签吗？").arg(taskTitle).arg(tagItem->text());
     if (QMessageBox::question(this, "确认解除", msg) == QMessageBox::Yes) {
         if (Database::instance().removeTaskTagRelation(taskId, tagId)) {
-            // 刷新右侧任务列表
             onTagSelected(tagItem);
         } else {
             QMessageBox::warning(this, "错误", "解除关联失败");

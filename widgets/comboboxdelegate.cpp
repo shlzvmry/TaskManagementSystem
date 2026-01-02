@@ -20,12 +20,12 @@ QWidget *ComboBoxDelegate::createEditor(QWidget *parent, const QStyleOptionViewI
     QComboBox *editor = new QComboBox(parent);
     editor->setFrame(false);
 
-    if (index.column() == 3) { // 优先级
+    if (index.column() == 3) {
         QMap<int, QString> options = TaskModel::getPriorityOptions();
         for (auto it = options.begin(); it != options.end(); ++it) {
             editor->addItem(it.value(), it.key());
         }
-    } else if (index.column() == 4) { // 状态
+    } else if (index.column() == 4) {
         QMap<int, QString> options = TaskModel::getStatusOptions();
         for (auto it = options.begin(); it != options.end(); ++it) {
             editor->addItem(it.value(), it.key());

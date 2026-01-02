@@ -3,6 +3,8 @@
 #include "dialogs/inspirationdialog.h"
 #include "views/calenderview.h"
 #include "models/taskmodel.h"
+#include "dialogs/inspirationrecyclebindialog.h"
+#include "dialogs/inspirationtagsearchdialog.h"
 #include <QPainter>
 #include <QDateTime>
 #include <QListWidget>
@@ -31,38 +33,40 @@ void InspirationGridDelegate::paint(QPainter *painter, const QStyleOptionViewIte
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
 
-    // 获取数据
     QVariantMap data = index.data(Qt::UserRole).toMap();
     QString content = data["content"].toString();
     QDateTime createTime = data["created_at"].toDateTime();
     QString timeStr = createTime.isValid() ? createTime.toString("MM-dd HH:mm") : "";
 
-    QRect rect = option.rect.adjusted(4, 4, -4, -4);
+    QRect rect = option.rect.adjusted(6, 6, -6, -6);
 
-    // 绘制背景 (淡黄色便利贴风格)
+    QColor bgColor;
+    QColor borderColor;
+
     if (option.state & QStyle::State_Selected) {
-        painter->setBrush(QColor("#fff59d")); // 选中稍微深一点
-        painter->setPen(QColor("#fbc02d"));
+        bgColor = QColor(100, 125, 160, 160);
+        borderColor = QColor(160, 170, 230, 220);
+    } else if (option.state & QStyle::State_MouseOver) {
+        bgColor = QColor(150, 185, 220, 110);
+        borderColor = QColor(255, 255, 255, 160);
     } else {
-        painter->setBrush(QColor("#fff9c4")); // 默认淡黄
-        painter->setPen(Qt::NoPen);
+        bgColor = QColor(135, 160, 190, 90);
+        borderColor = QColor(255, 255, 255, 50);
     }
-    painter->drawRoundedRect(rect, 8, 8);
 
-    // 绘制内容
-    painter->setPen(QColor("#5d4037")); // 深褐色文字
-    QRect textRect = rect.adjusted(8, 8, -8, -25);
+    painter->setBrush(bgColor);
+    painter->setPen(QPen(borderColor, 1));
+    painter->drawRoundedRect(rect, 10, 10);
 
-    // 简单的文本自动换行处理
-    QTextOption textOption;
-    textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-    textOption.setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    painter->drawText(textRect, content, textOption);
+    painter->setPen(QColor(245, 245, 255));
+    QRect textRect = rect.adjusted(12, 12, -12, -25);
+    painter->drawText(textRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, content);
 
-    // 绘制时间 (右下角)
-    painter->setPen(QColor("#a1887f"));
-    painter->setFont(QFont(painter->font().family(), 8));
-    painter->drawText(rect.adjusted(0, 0, -8, -5), Qt::AlignRight | Qt::AlignBottom, timeStr);
+    painter->setPen(QColor(255, 255, 255, 140));
+    QFont timeFont = painter->font();
+    timeFont.setPointSizeF(9);
+    painter->setFont(timeFont);
+    painter->drawText(rect.adjusted(0, 0, -10, -8), Qt::AlignRight | Qt::AlignBottom, timeStr);
 
     painter->restore();
 }
@@ -71,7 +75,7 @@ QSize InspirationGridDelegate::sizeHint(const QStyleOptionViewItem &option, cons
 {
     Q_UNUSED(option);
     Q_UNUSED(index);
-    return QSize(160, 160); // 固定卡片大小
+    return QSize(165, 120);
 }
 
 InspirationView::InspirationView(QWidget *parent)
@@ -85,10 +89,8 @@ void InspirationView::setupUI()
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(10, 10, 10, 10);
 
-    // --- 1. 顶部工具栏 ---
     QHBoxLayout *toolLayout = new QHBoxLayout();
 
-    // 左侧：增删改
     QPushButton *addBtn = new QPushButton("记录", this);
     addBtn->setObjectName("addInspirationBtn");
     addBtn->setIcon(QIcon(":/icons/add_icon.png"));
@@ -105,47 +107,35 @@ void InspirationView::setupUI()
     toolLayout->addWidget(editBtn);
     toolLayout->addWidget(deleteBtn);
 
-    // 中间：过滤与搜索
-    toolLayout->addSpacing(20);
-    toolLayout->addWidget(new QLabel("过滤:", this));
-
-    m_tagCombo = new QComboBox(this);
-    m_tagCombo->addItem("所有标签", "");
-    m_tagCombo->setFixedWidth(120);
-    m_tagCombo->setObjectName("filterTagCombo");
+    toolLayout->addSpacing(10);
 
     m_searchEdit = new QLineEdit(this);
     m_searchEdit->setPlaceholderText("搜索灵感内容...");
-    m_searchEdit->setFixedWidth(190);
-
-    toolLayout->addWidget(m_tagCombo);
+    m_searchEdit->setFixedWidth(460);
     toolLayout->addWidget(m_searchEdit);
-
-    // 右侧：功能按钮
     toolLayout->addStretch();
+
+    QPushButton *tagSearchBtn = new QPushButton("标签检索", this);
+    tagSearchBtn->setObjectName("inspirationTagSearchBtn");
+    tagSearchBtn->setIcon(QIcon(":/icons/edit_icon.png"));
+
+    toolLayout->addWidget(tagSearchBtn);
 
     QPushButton *recycleBinBtn = new QPushButton("回收站", this);
     recycleBinBtn->setObjectName("inspirationRecycleBinBtn");
     recycleBinBtn->setIcon(QIcon(":/icons/recycle_icon.png"));
-
-    QPushButton *tagManagerBtn = new QPushButton("标签管理", this);
-    tagManagerBtn->setObjectName("inspirationTagManagerBtn");
-    tagManagerBtn->setIcon(QIcon(":/icons/edit_icon.png"));
 
     QPushButton *refreshBtn = new QPushButton("刷新", this);
     refreshBtn->setObjectName("inspirationRefreshBtn");
     refreshBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
 
     toolLayout->addWidget(recycleBinBtn);
-    toolLayout->addWidget(tagManagerBtn);
     toolLayout->addWidget(refreshBtn);
 
     layout->addLayout(toolLayout);
 
-    // --- 2. 中间视图区域 (StackedWidget) ---
     m_viewStack = new QStackedWidget(this);
 
-    // View 0: 列表视图
     m_tableView = new QTableView(this);
     m_tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_tableView->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -155,66 +145,127 @@ void InspirationView::setupUI()
     m_tableView->setFrameShape(QFrame::NoFrame);
     m_viewStack->addWidget(m_tableView);
 
-    // View 1: 网格视图 (便利贴墙)
     m_gridView = new QListWidget(this);
     m_gridView->setViewMode(QListWidget::IconMode);
     m_gridView->setResizeMode(QListWidget::Adjust);
-    m_gridView->setSpacing(10);
+    m_gridView->setSpacing(8);
     m_gridView->setMovement(QListWidget::Static);
     m_gridView->setSelectionMode(QListWidget::SingleSelection);
     m_gridView->setStyleSheet("QListWidget { background-color: transparent; border: none; }");
     m_gridView->setItemDelegate(new InspirationGridDelegate(this));
+
+    QFont font = m_gridView->font();
+    font.setPointSize(10);
+    m_gridView->setFont(font);
+
     m_viewStack->addWidget(m_gridView);
 
-    // View 2: 日历视图
     m_calendarView = new CalendarView(this);
     m_viewStack->addWidget(m_calendarView);
 
-    connect(m_calendarView, &CalendarView::showInspirations, this, &InspirationView::showInspirationsRequested);
-    connect(m_calendarView, &CalendarView::showTasks, this, &InspirationView::showTasksRequested);
+    connect(m_calendarView, &CalendarView::showInspirations,
+            this, &InspirationView::showInspirationsRequested);
+    connect(m_calendarView, &CalendarView::showTasks,
+            this, &InspirationView::showTasksRequested);
 
     layout->addWidget(m_viewStack);
 
-    // --- 3. 底部视图切换栏 ---
     QHBoxLayout *bottomLayout = new QHBoxLayout();
-    bottomLayout->addStretch();
+
+    m_leftBottomContainer = new QWidget(this);
+    m_leftBottomContainer->setFixedWidth(195);
+    QHBoxLayout *leftLayout = new QHBoxLayout(m_leftBottomContainer);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(5);
+
+    m_dateFilterCheck = new QCheckBox("筛选:", this);
+    m_dateFilterCheck->setChecked(true);
+    m_dateFilterCheck->setStyleSheet("color: #cccccc;");
+
+    m_yearSpin = new QSpinBox(this);
+    m_yearSpin->setRange(2000, 2099);
+    m_yearSpin->setValue(QDate::currentDate().year());
+    m_yearSpin->setSuffix("年");
+    m_yearSpin->setFixedWidth(70);
+    m_yearSpin->setStyleSheet(
+        "QSpinBox { background-color: #2d2d2d; color: #ffffff; border: 1px solid #3d3d3d; border-radius: 4px; padding: 2px; }"
+        "QSpinBox::up-button, QSpinBox::down-button { width: 16px; }"
+        );
+
+    m_monthSpin = new QSpinBox(this);
+    m_monthSpin->setRange(1, 12);
+    m_monthSpin->setValue(QDate::currentDate().month());
+    m_monthSpin->setSuffix("月");
+    m_monthSpin->setFixedWidth(55);
+    m_monthSpin->setStyleSheet(m_yearSpin->styleSheet());
+
+    connect(m_dateFilterCheck, &QCheckBox::toggled, this, [this](bool checked){
+        m_yearSpin->setEnabled(checked);
+        m_monthSpin->setEnabled(checked);
+        applyFilters();
+    });
+
+    connect(m_yearSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int){ applyFilters(); });
+    connect(m_monthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int){ applyFilters(); });
+
+    leftLayout->addWidget(m_dateFilterCheck);
+    leftLayout->addWidget(m_yearSpin);
+    leftLayout->addWidget(m_monthSpin);
 
     QButtonGroup *viewGroup = new QButtonGroup(this);
+
     QPushButton *listViewBtn = new QPushButton("列表视图", this);
     listViewBtn->setCheckable(true);
     listViewBtn->setChecked(true);
+    listViewBtn->setObjectName("listViewBtn");
 
     QPushButton *gridViewBtn = new QPushButton("便利贴墙", this);
     gridViewBtn->setCheckable(true);
+    gridViewBtn->setObjectName("kanbanViewBtn");
 
     QPushButton *calendarViewBtn = new QPushButton("日历视图", this);
     calendarViewBtn->setCheckable(true);
+    calendarViewBtn->setObjectName("calendarViewBtn");
 
     viewGroup->addButton(listViewBtn, 0);
     viewGroup->addButton(gridViewBtn, 1);
     viewGroup->addButton(calendarViewBtn, 2);
 
-    bottomLayout->addWidget(listViewBtn);
-    bottomLayout->addWidget(gridViewBtn);
-    bottomLayout->addWidget(calendarViewBtn);
+    QHBoxLayout *centerBtnLayout = new QHBoxLayout();
+    centerBtnLayout->addWidget(listViewBtn);
+    centerBtnLayout->addWidget(gridViewBtn);
+    centerBtnLayout->addWidget(calendarViewBtn);
+
+    QWidget *rightDummy = new QWidget(this);
+    rightDummy->setFixedWidth(220);
+
+    bottomLayout->addWidget(m_leftBottomContainer);
     bottomLayout->addStretch();
+    bottomLayout->addLayout(centerBtnLayout);
+    bottomLayout->addStretch();
+    bottomLayout->addWidget(rightDummy);
 
     layout->addLayout(bottomLayout);
 
-    // --- 连接信号 ---
-    connect(viewGroup, &QButtonGroup::idClicked, m_viewStack, &QStackedWidget::setCurrentIndex);
+    connect(viewGroup, &QButtonGroup::idClicked, this, [this, rightDummy](int id){
+        m_viewStack->setCurrentIndex(id);
 
-    connect(m_searchEdit, &QLineEdit::textChanged, this, &InspirationView::onSearchTextChanged);
-    connect(m_tagCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &InspirationView::onTagFilterChanged);
+        bool showDateFilter = (id != 2);
+        m_leftBottomContainer->setVisible(showDateFilter);
+        rightDummy->setVisible(showDateFilter);
+    });
 
-    // 列表视图交互
-    connect(m_tableView, &QTableView::doubleClicked, this, &InspirationView::onDoubleClicked);
+    connect(m_searchEdit, &QLineEdit::textChanged,
+            this, &InspirationView::onSearchTextChanged);
 
-    // 网格视图交互 (双击编辑)
+    connect(m_tableView, &QTableView::doubleClicked,
+            this, &InspirationView::onDoubleClicked);
+
     connect(m_gridView, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item){
         int id = item->data(Qt::UserRole).toMap()["id"].toInt();
-        // 遍历模型找到对应的 Index
-        for(int i=0; i<m_model->rowCount(); ++i) {
+        for(int i = 0; i < m_model->rowCount(); ++i) {
             QModelIndex idx = m_model->index(i, 0);
             if (m_model->data(idx, Qt::UserRole).toMap()["id"].toInt() == id) {
                 onDoubleClicked(idx);
@@ -227,12 +278,13 @@ void InspirationView::setupUI()
     connect(editBtn, &QPushButton::clicked, this, &InspirationView::onEditClicked);
     connect(deleteBtn, &QPushButton::clicked, this, &InspirationView::onDeleteClicked);
     connect(refreshBtn, &QPushButton::clicked, this, &InspirationView::refresh);
+    connect(tagSearchBtn, &QPushButton::clicked, this, &InspirationView::onTagSearchClicked);
 
     connect(recycleBinBtn, &QPushButton::clicked, this, [this](){
-        QMessageBox::information(this, "提示", "灵感记录为直接删除模式，暂无回收站功能。");
-    });
-    connect(tagManagerBtn, &QPushButton::clicked, this, [this](){
-        QMessageBox::information(this, "提示", "灵感标签为自由文本，请直接在编辑时修改。");
+        if (!m_model) return;
+        InspirationRecycleBinDialog dlg(m_model, this);
+        dlg.exec();
+        refresh();
     });
 }
 
@@ -241,105 +293,137 @@ void InspirationView::setModel(InspirationModel *model)
     m_model = model;
     m_tableView->setModel(model);
 
-    // 设置列表视图列宽
     m_tableView->horizontalHeader()->setMinimumSectionSize(100);
     m_tableView->horizontalHeader()->setStretchLastSection(true);
     m_tableView->setColumnWidth(0, 160);
     m_tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
-    m_tableView->setColumnWidth(1, 630);
+    m_tableView->setColumnWidth(1, 650);
     m_tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Interactive);
     m_tableView->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);
 
-    // 设置日历视图的模型
     m_calendarView->setInspirationModel(model);
 
-    // 刷新网格视图
     refreshGridView();
 
-    // 监听模型变化以刷新网格
     connect(model, &QAbstractTableModel::modelReset, this, &InspirationView::refreshGridView);
     connect(model, &QAbstractTableModel::rowsInserted, this, &InspirationView::refreshGridView);
     connect(model, &QAbstractTableModel::rowsRemoved, this, &InspirationView::refreshGridView);
     connect(model, &QAbstractTableModel::dataChanged, this, &InspirationView::refreshGridView);
-
-    updateTagCombo();
 }
 
 void InspirationView::refresh()
 {
     if (m_model) {
         m_model->refresh();
-        updateTagCombo();
+
+        m_filterTags.clear();
+        m_filterMatchAll = false;
+        m_searchEdit->clear();
+
+        QDate current = QDate::currentDate();
+        m_yearSpin->blockSignals(true);
+        m_monthSpin->blockSignals(true);
+        m_yearSpin->setValue(current.year());
+        m_monthSpin->setValue(current.month());
+        m_dateFilterCheck->setChecked(true);
+        m_yearSpin->blockSignals(false);
+        m_monthSpin->blockSignals(false);
+
+        applyFilters();
     }
 }
 
-void InspirationView::updateTagCombo()
+void InspirationView::onTagSearchClicked()
 {
     if (!m_model) return;
 
-    QString currentTag = m_tagCombo->currentData().toString();
+    InspirationTagSearchDialog dlg(m_model, m_filterTags, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        m_filterTags = dlg.getSelectedTags();
+        m_filterMatchAll = dlg.isMatchAll();
+        applyFilters();
+    }
+}
 
-    m_tagCombo->blockSignals(true);
-    m_tagCombo->clear();
-    m_tagCombo->addItem("所有标签", "");
+void InspirationView::applyFilters()
+{
+    if (!m_model) return;
 
-    QStringList tags = m_model->getAllTags();
-    for (const QString &tag : tags) {
-        m_tagCombo->addItem(tag, tag);
+    if (m_calendarView) {
+        m_calendarView->setInspirationFilter(m_filterTags, m_filterMatchAll);
     }
 
-    int index = m_tagCombo->findData(currentTag);
-    if (index != -1) m_tagCombo->setCurrentIndex(index);
+    QString search = m_searchEdit->text();
 
-    m_tagCombo->blockSignals(false);
+    bool filterDate = m_dateFilterCheck->isChecked();
+    int targetYear = m_yearSpin->value();
+    int targetMonth = m_monthSpin->value();
+
+    for (int i = 0; i < m_model->rowCount(); ++i) {
+        QModelIndex idx = m_model->index(i, 0);
+        QVariantMap data = m_model->data(idx, Qt::UserRole).toMap();
+
+        QString content = data["content"].toString();
+        QString tagsStr = data["tags"].toString();
+        QDateTime createTime = data["created_at"].toDateTime();
+        QStringList itemTags = tagsStr.split(",", Qt::SkipEmptyParts);
+
+        bool dateMatch = true;
+        if (filterDate) {
+            if (createTime.date().year() != targetYear ||
+                createTime.date().month() != targetMonth) {
+                dateMatch = false;
+            }
+        }
+
+        bool tagMatch = true;
+        if (!m_filterTags.isEmpty()) {
+            if (m_filterMatchAll) {
+                for (const QString &filterTag : m_filterTags) {
+                    bool found = false;
+                    for (const QString &itemTag : itemTags) {
+                        if (itemTag.trimmed() == filterTag) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        tagMatch = false;
+                        break;
+                    }
+                }
+            } else {
+                tagMatch = false;
+                for (const QString &filterTag : m_filterTags) {
+                    for (const QString &itemTag : itemTags) {
+                        if (itemTag.trimmed() == filterTag) {
+                            tagMatch = true;
+                            break;
+                        }
+                    }
+                    if (tagMatch) break;
+                }
+            }
+        }
+
+        bool searchMatch = search.isEmpty() ||
+                           content.contains(search, Qt::CaseInsensitive) ||
+                           tagsStr.contains(search, Qt::CaseInsensitive);
+
+        bool shouldShow = dateMatch && tagMatch && searchMatch;
+
+        m_tableView->setRowHidden(i, !shouldShow);
+
+        if (m_gridView && i < m_gridView->count()) {
+            m_gridView->item(i)->setHidden(!shouldShow);
+        }
+    }
 }
 
 void InspirationView::onSearchTextChanged(const QString &text)
 {
-    // 简单实现：遍历隐藏行
-    if (!m_model) return;
-
-    for (int i = 0; i < m_model->rowCount(); ++i) {
-        QModelIndex idxContent = m_model->index(i, 1);
-        QModelIndex idxTags = m_model->index(i, 2);
-        QString content = m_model->data(idxContent).toString();
-        QString tags = m_model->data(idxTags).toString();
-
-        bool match = content.contains(text, Qt::CaseInsensitive) ||
-                     tags.contains(text, Qt::CaseInsensitive);
-
-        // 如果搜索框为空，则显示所有
-        if (text.isEmpty()) {
-            // 重新触发一次标签过滤以恢复状态
-            onTagFilterChanged(m_tagCombo->currentIndex());
-            return;
-        }
-
-        m_tableView->setRowHidden(i, !match);
-    }
-}
-
-void InspirationView::onTagFilterChanged(int index)
-{
-    Q_UNUSED(index);
-    QString tag = m_tagCombo->currentData().toString();
-    QString search = m_searchEdit->text();
-
-    if (!m_model) return;
-
-    for (int i = 0; i < m_model->rowCount(); ++i) {
-        QModelIndex idxContent = m_model->index(i, 1);
-        QModelIndex idxTags = m_model->index(i, 2);
-        QString content = m_model->data(idxContent).toString();
-        QString tags = m_model->data(idxTags).toString();
-
-        bool tagMatch = tag.isEmpty() || tags.contains(tag, Qt::CaseInsensitive);
-        bool searchMatch = search.isEmpty() ||
-                           content.contains(search, Qt::CaseInsensitive) ||
-                           tags.contains(search, Qt::CaseInsensitive);
-
-        m_tableView->setRowHidden(i, !(tagMatch && searchMatch));
-    }
+    Q_UNUSED(text);
+    applyFilters();
 }
 
 void InspirationView::onDoubleClicked(const QModelIndex &index)
@@ -351,19 +435,22 @@ void InspirationView::onDoubleClicked(const QModelIndex &index)
 
     if (dialog.exec() == QDialog::Accepted) {
         QVariantMap newData = dialog.getData();
-        m_model->updateInspiration(newData["id"].toInt(), newData["content"].toString(), newData["tags"].toString());
-        updateTagCombo();
+
+        if (newData.contains("id")) {
+            m_model->updateInspiration(newData["id"].toInt(), newData["content"].toString(), newData["tags"].toString());
+        } else {
+            m_model->addInspiration(newData["content"].toString(), newData["tags"].toString());
+        }
+
+        applyFilters();
     }
 }
-
 void InspirationView::onAddClicked()
 {
     InspirationDialog dialog(this);
     if (dialog.exec() == QDialog::Accepted) {
         QVariantMap data = dialog.getData();
         m_model->addInspiration(data["content"].toString(), data["tags"].toString());
-        updateTagCombo();
-        // 滚动到顶部
         m_tableView->scrollToTop();
     }
 }
@@ -379,7 +466,6 @@ void InspirationView::onDeleteClicked()
     if (QMessageBox::question(this, "确认", "确定要删除这条灵感吗？") == QMessageBox::Yes) {
         int id = m_model->data(index, Qt::UserRole).toMap()["id"].toInt();
         m_model->deleteInspiration(id);
-        updateTagCombo();
     }
 }
 
@@ -413,4 +499,5 @@ void InspirationView::setTaskModel(TaskModel *model)
         m_calendarView->setTaskModel(model);
     }
 }
+
 

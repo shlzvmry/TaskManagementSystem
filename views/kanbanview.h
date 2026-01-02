@@ -18,7 +18,6 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 };
 
-// 单个看板列
 class KanbanColumn : public QListView
 {
     Q_OBJECT
@@ -40,7 +39,6 @@ private:
     int m_value;
 };
 
-// 看板主视图
 class KanbanView : public QWidget
 {
     Q_OBJECT

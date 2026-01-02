@@ -44,7 +44,6 @@ public:
     explicit TaskModel(QObject *parent = nullptr);
     ~TaskModel();
 
-    // QAbstractTableModel 接口
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -60,7 +59,6 @@ public:
     QStringList mimeTypes() const override;
     QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
-    // 自定义操作
     bool addTask(const QVariantMap &taskData);
     bool updateTask(int taskId, const QVariantMap &taskData);
     bool deleteTask(int taskId, bool softDelete = true);
@@ -68,29 +66,22 @@ public:
     QVariantMap getTask(int taskId) const;
     bool permanentDeleteTask(int taskId);
 
-    // 排序接口
     void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
 
-    // 批量操作
     QList<QVariantMap> getAllTasks(bool includeDeleted = false) const;
     QList<QVariantMap> getTasksByStatus(int status) const;
     QList<QVariantMap> getTasksByCategory(int categoryId) const;
     QList<QVariantMap> getTasksByTag(int tagId) const;
     QList<QVariantMap> getDeletedTasks() const;
 
-    // 刷新数据
     void refresh(bool showDeleted = false);
 
-    // 状态和优先级选项
     static QMap<int, QString> getPriorityOptions();
     static QMap<int, QString> getStatusOptions();
 
-    // 任务统计
     int getTaskCount(bool includeDeleted = false) const;
     int getCompletedCount() const;
     double getCompletionRate() const;
-
-    // 回收站统计
     int getDeletedTaskCount() const;
 
 signals:

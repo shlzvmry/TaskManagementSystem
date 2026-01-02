@@ -24,12 +24,10 @@ RecycleBinDialog::~RecycleBinDialog()
 
 void RecycleBinDialog::setupUI()
 {
-    // 设置对话框属性
     setModal(true);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     resize(900, 600);
 
-    // 设置表格属性
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tableWidget->setAlternatingRowColors(true);
@@ -38,30 +36,26 @@ void RecycleBinDialog::setupUI()
     ui->tableWidget->setShowGrid(true);
     ui->tableWidget->setGridStyle(Qt::SolidLine);
 
-    // 设置表格头
     QHeaderView *horizontalHeader = ui->tableWidget->horizontalHeader();
     horizontalHeader->setStretchLastSection(true);
     horizontalHeader->setSectionResizeMode(QHeaderView::Interactive);
     horizontalHeader->setDefaultAlignment(Qt::AlignCenter);
     horizontalHeader->setMinimumHeight(40);
 
-    // 设置列数
     ui->tableWidget->setColumnCount(8);
 
-    ui->tableWidget->setColumnWidth(0, 40);   // ID
-    ui->tableWidget->setColumnWidth(1, 200);  // 标题
-    ui->tableWidget->setColumnWidth(2, 80);  // 分类
-    ui->tableWidget->setColumnWidth(3, 65);   // 优先级
-    ui->tableWidget->setColumnWidth(4, 65);   // 状态
-    ui->tableWidget->setColumnWidth(5, 130);  // 删除时间
-    ui->tableWidget->setColumnWidth(6, 130);  // 提醒时间
-    ui->tableWidget->setColumnWidth(7, 130);  // 创建时间
+    ui->tableWidget->setColumnWidth(0, 40);
+    ui->tableWidget->setColumnWidth(1, 200);
+    ui->tableWidget->setColumnWidth(2, 80);
+    ui->tableWidget->setColumnWidth(3, 65);
+    ui->tableWidget->setColumnWidth(4, 65);
+    ui->tableWidget->setColumnWidth(5, 130);
+    ui->tableWidget->setColumnWidth(6, 130);
+    ui->tableWidget->setColumnWidth(7, 130);
 
-    // 设置表头文本
     QStringList headers = {"ID", "标题", "分类", "优先级", "状态", "删除时间", "提醒时间", "创建时间"};
     ui->tableWidget->setHorizontalHeaderLabels(headers);
 
-    // 垂直表头设置
     ui->tableWidget->verticalHeader()->setVisible(false);
     ui->tableWidget->verticalHeader()->setDefaultSectionSize(35);
     ui->tableWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -91,7 +85,6 @@ void RecycleBinDialog::setTaskModel(TaskModel *model)
     if (taskModel) {
         refreshDeletedTasks();
 
-        // 连接信号
         connect(taskModel, &TaskModel::taskRestored, this, [this](int taskId) {
             Q_UNUSED(taskId);
             refreshDeletedTasks();
@@ -119,7 +112,6 @@ void RecycleBinDialog::refreshDeletedTasks()
 
     ui->tableWidget->setRowCount(0);
 
-    // 如果没有数据，显示空表
     if (deletedTasks.isEmpty()) {
         ui->tableWidget->setRowCount(0);
         ui->statusLabel->setText("回收站为空");
@@ -127,7 +119,6 @@ void RecycleBinDialog::refreshDeletedTasks()
         return;
     }
 
-    // 设置行数
     ui->tableWidget->setRowCount(deletedTasks.size());
 
     int row = 0;
@@ -136,13 +127,11 @@ void RecycleBinDialog::refreshDeletedTasks()
             << ", 标题=" << task["title"].toString();
 
         try {
-            // ID
             QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(task["id"].toInt()));
             idItem->setTextAlignment(Qt::AlignCenter);
             idItem->setData(Qt::UserRole, task["id"]);
             ui->tableWidget->setItem(row, 0, idItem);
 
-            // 标题
             QString title = task["title"].toString();
             QTableWidgetItem *titleItem = new QTableWidgetItem(title);
             QString description = task["description"].toString();
@@ -152,13 +141,11 @@ void RecycleBinDialog::refreshDeletedTasks()
             titleItem->setTextAlignment(Qt::AlignCenter);
             ui->tableWidget->setItem(row, 1, titleItem);
 
-            // 分类
             QString categoryName = task["category_name"].toString();
             QTableWidgetItem *categoryItem = new QTableWidgetItem(categoryName.isEmpty() ? "未分类" : categoryName);
             categoryItem->setTextAlignment(Qt::AlignCenter);
             ui->tableWidget->setItem(row, 2, categoryItem);
 
-            // 优先级
             int priority = task["priority"].toInt();
             QString priorityText;
             switch (priority) {
@@ -172,7 +159,6 @@ void RecycleBinDialog::refreshDeletedTasks()
             priorityItem->setTextAlignment(Qt::AlignCenter);
             ui->tableWidget->setItem(row, 3, priorityItem);
 
-            // 状态
             int status = task["status"].toInt();
             QString statusText;
             switch (status) {
@@ -186,21 +172,18 @@ void RecycleBinDialog::refreshDeletedTasks()
             statusItem->setTextAlignment(Qt::AlignCenter);
             ui->tableWidget->setItem(row, 4, statusItem);
 
-            // 删除时间
             QDateTime deletedTime = task["updated_at"].toDateTime();
             QTableWidgetItem *deletedItem = new QTableWidgetItem(
                 deletedTime.isValid() ? deletedTime.toString("yyyy-MM-dd HH:mm") : "未知时间");
             deletedItem->setTextAlignment(Qt::AlignCenter);
             ui->tableWidget->setItem(row, 5, deletedItem);
 
-            // 提醒时间
             QDateTime remindTime = task["remind_time"].toDateTime();
             QTableWidgetItem *remindItem = new QTableWidgetItem(
                 remindTime.isValid() ? remindTime.toString("yyyy-MM-dd HH:mm") : "-");
             remindItem->setTextAlignment(Qt::AlignCenter);
             ui->tableWidget->setItem(row, 6, remindItem);
 
-            // 创建时间
             QDateTime createdTime = task["created_at"].toDateTime();
             QTableWidgetItem *createdItem = new QTableWidgetItem(
                 createdTime.isValid() ? createdTime.toString("yyyy-MM-dd HH:mm") : "未知时间");
@@ -215,13 +198,10 @@ void RecycleBinDialog::refreshDeletedTasks()
         }
     }
 
-    // 更新状态标签
     ui->statusLabel->setText(QString("共 %1 个已删除任务").arg(deletedTasks.size()));
 
-    // 更新按钮状态
     updateButtonStates();
 
-    // 强制刷新表格显示
     ui->tableWidget->viewport()->update();
     qDebug() << "回收站刷新完成，显示" << row << "行数据";
 }
@@ -245,7 +225,6 @@ void RecycleBinDialog::onDeletePermanentlyClicked()
     int taskId = getSelectedTaskId();
     if (taskId == -1) return;
 
-    // 查找任务标题
     QString taskTitle;
     for (const QVariantMap &task : deletedTasks) {
         if (task["id"].toInt() == taskId) {

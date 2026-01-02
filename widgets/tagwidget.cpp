@@ -6,7 +6,6 @@
 #include <QCryptographicHash>
 #include <QStyleOptionButton>
 
-// 自定义标签按钮
 class TagButton : public QPushButton {
 public:
     TagButton(const QString &text, QWidget *parent = nullptr) : QPushButton(text, parent) {
@@ -66,7 +65,7 @@ void TagWidget::setupUI()
 {
     m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(8);
-    m_layout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter); // 增加垂直居中
+    m_layout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     setFixedHeight(30);
 }
 
@@ -210,7 +209,6 @@ QString TagWidget::generateColor(const QString &text)
     hash.addData(text.toUtf8());
     QByteArray result = hash.result();
 
-    // 使用哈希值的第一个字节作为索引，从色盘中取色
     unsigned char index = static_cast<unsigned char>(result[0]);
     return palette[index % palette.size()];
 }

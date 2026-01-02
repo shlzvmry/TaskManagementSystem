@@ -6,7 +6,6 @@
 #include <QMimeData>
 #include <QDataStream>
 
-// 获取数据库连接
 static QSqlDatabase getDbConnection()
 {
     QSqlDatabase db = Database::instance().getDatabase();

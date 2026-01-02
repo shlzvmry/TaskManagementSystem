@@ -62,7 +62,6 @@ TaskDialog::~TaskDialog()
 
 void TaskDialog::setupUI()
 {
-    // 设置对话框属性
     setModal(true);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
@@ -71,37 +70,27 @@ void TaskDialog::setupUI()
 
     this->resize(500, 580);
 
-    // 初始化优先级和状态控件
     m_priorityWidget = new PriorityWidget(this);
     m_statusWidget = new StatusWidget(this);
 
     ui->widgetPriority->layout()->addWidget(m_priorityWidget);
     ui->widgetStatus->layout()->addWidget(m_statusWidget);
 
-    // 初始化标签控件
     m_tagWidget = new TagWidget(this);
     ui->widgetTags->layout()->addWidget(m_tagWidget);
 
-    // 安装事件过滤器以支持横向滚动
     ui->scrollAreaSelectedTags->installEventFilter(this);
     ui->scrollAreaExistingTags->installEventFilter(this);
     ui->lineEditNewTag->installEventFilter(this);
     ui->scrollAreaWidgetContentsExisting->layout()->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
-    // 初始化时间控件
     initDateTimeEdits();
-
-    // 加载分类
     loadCategories();
-
-    // 加载现有标签
     loadExistingTags();
 
-    // 设置按钮文本
     ui->buttonBox->button(QDialogButtonBox::Save)->setText("保存");
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("取消");
 
-    // --- 动态添加时间显示标签 ---
     QFormLayout *formLayout = qobject_cast<QFormLayout*>(ui->groupBoxBasic->layout());
     if (formLayout) {
         m_labelCreatedTime = new QLabel("-", this);
@@ -136,17 +125,14 @@ void TaskDialog::initDateTimeEdits()
     QDateTime now = QDateTime::currentDateTime();
     QDateTime tomorrow = now.addDays(1);
 
-    // 设置开始时间（默认为现在）
     ui->dateTimeEditStart->setDateTime(now);
     ui->dateTimeEditStart->setMinimumDateTime(now.addYears(-1));
     ui->dateTimeEditStart->setDisplayFormat("yyyy-MM-dd HH:mm");
 
-    // 设置截止时间（默认为明天）
     ui->dateTimeEditDeadline->setDateTime(tomorrow);
     ui->dateTimeEditDeadline->setMinimumDateTime(now);
     ui->dateTimeEditDeadline->setDisplayFormat("yyyy-MM-dd HH:mm");
 
-    // 设置提醒时间（默认为截止时间前1小时）
     ui->dateTimeEditRemind->setDateTime(tomorrow.addSecs(-3600));
     ui->dateTimeEditRemind->setMinimumDateTime(now);
     ui->dateTimeEditRemind->setDisplayFormat("yyyy-MM-dd HH:mm");
@@ -166,18 +152,15 @@ void TaskDialog::loadCategories()
             QString name = query.value("name").toString();
             QString color = query.value("color").toString();
 
-            // 设置项目显示文本和颜色
             ui->comboBoxCategory->addItem(name, id);
             int index = ui->comboBoxCategory->count() - 1;
 
-            // 为分类项设置颜色
             QPixmap pixmap(16, 16);
             pixmap.fill(QColor(color));
             ui->comboBoxCategory->setItemIcon(index, QIcon(pixmap));
         }
     }
 
-    // 默认选择第一个内置分类
     if (ui->comboBoxCategory->count() > 1) {
         ui->comboBoxCategory->setCurrentIndex(1);
     }
@@ -185,10 +168,8 @@ void TaskDialog::loadCategories()
 
 void TaskDialog::loadExistingTags()
 {
-    // 获取 UI 中定义的容器布局
     QLayout *containerLayout = ui->scrollAreaWidgetContentsExisting->layout();
 
-    // 清除旧的按钮
     QLayoutItem *item;
     while ((item = containerLayout->takeAt(0)) != nullptr) {
         if (item->widget()) {
@@ -197,7 +178,6 @@ void TaskDialog::loadExistingTags()
         delete item;
     }
 
-    //从数据库加载标签并创建按钮
     QSqlQuery query(Database::instance().getDatabase());
     query.prepare("SELECT name, color FROM task_tags ORDER BY name");
 
@@ -218,11 +198,9 @@ void TaskDialog::loadExistingTags()
 
 void TaskDialog::populateData(const QVariantMap &taskData)
 {
-    // 填充基本信息
     ui->lineEditTitle->setText(taskData.value("title").toString());
     ui->textEditDescription->setPlainText(taskData.value("description").toString());
 
-    // 填充分类
     int categoryId = taskData.value("category_id").toInt();
     for (int i = 0; i < ui->comboBoxCategory->count(); ++i) {
         if (ui->comboBoxCategory->itemData(i).toInt() == categoryId) {
@@ -231,7 +209,6 @@ void TaskDialog::populateData(const QVariantMap &taskData)
         }
     }
 
-    // 填充优先级和状态
     if (m_priorityWidget) {
         m_priorityWidget->setPriority(taskData.value("priority", 2).toInt());
     }
@@ -241,7 +218,6 @@ void TaskDialog::populateData(const QVariantMap &taskData)
         m_statusWidget->setStatus(m_originalStatus);
     }
 
-    // 填充时间
     QDateTime startTime = taskData.value("start_time").toDateTime();
     if (startTime.isValid()) {
         ui->dateTimeEditStart->setDateTime(startTime);
@@ -271,7 +247,6 @@ void TaskDialog::populateData(const QVariantMap &taskData)
         }
     }
 
-    // 填充标签
     QVariantList tagNames = taskData.value("tag_names").toList();
     QVariantList tagColors = taskData.value("tag_colors").toList();
 
@@ -288,7 +263,6 @@ QVariantMap TaskDialog::getTaskData() const
 {
     QVariantMap taskData;
 
-    // 基本信息
     taskData["title"] = ui->lineEditTitle->text().trimmed();
     taskData["description"] = ui->textEditDescription->toPlainText();
     taskData["category_id"] = ui->comboBoxCategory->currentData().toInt();
@@ -297,39 +271,32 @@ QVariantMap TaskDialog::getTaskData() const
         taskData["category_id"] = 1;
     }
 
-    // 优先级
     if (m_priorityWidget) {
         taskData["priority"] = m_priorityWidget->getPriority();
     } else {
         taskData["priority"] = 2;
     }
 
-    // 状态与完成时间逻辑
     int currentStatus = 0;
     if (m_statusWidget) {
         currentStatus = m_statusWidget->getStatus();
         taskData["status"] = currentStatus;
     }
 
-    if (currentStatus == 2) { // 如果当前是"已完成"
+    if (currentStatus == 2) {
         if (m_originalStatus != 2) {
-            // 状态从"非已完成"变为"已完成" -> 更新为当前时间
             taskData["completed_at"] = QDateTime::currentDateTime();
         } else {
-            // 状态一直是"已完成" -> 保持原有完成时间
             taskData["completed_at"] = m_originalCompletedTime;
         }
     } else {
-        // 如果当前不是"已完成" -> 清空完成时间
         taskData["completed_at"] = QVariant();
     }
 
-    // 保持原有的创建时间（如果是编辑模式）
     if (m_isEditMode) {
         taskData["created_at"] = m_originalCreatedTime;
     }
 
-    // 时间信息
     taskData["start_time"] = ui->dateTimeEditStart->dateTime();
     taskData["deadline"] = ui->dateTimeEditDeadline->dateTime();
     taskData["remind_time"] = ui->dateTimeEditRemind->dateTime();
@@ -337,7 +304,6 @@ QVariantMap TaskDialog::getTaskData() const
     taskData["is_reminded"] = false;
     taskData["is_deleted"] = false;
 
-    // 标签信息
     if (m_tagWidget) {
         QList<QVariantMap> tags = m_tagWidget->getTags();
         QVariantList tagNames, tagColors;
@@ -439,7 +405,6 @@ void TaskDialog::showEvent(QShowEvent *event)
 {
     QDialog::showEvent(event);
 
-    // 设置焦点
     if (ui->lineEditTitle->text().isEmpty()) {
         ui->lineEditTitle->setFocus();
     }
@@ -475,11 +440,9 @@ bool TaskDialog::eventFilter(QObject *obj, QEvent *event)
     if (obj == ui->lineEditNewTag && event->type() == QEvent::KeyPress) {
         QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
         if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
-            // 输入框有内容 -> 添加标签，不关闭窗口
             if (!ui->lineEditNewTag->text().trimmed().isEmpty()) {
                 onAddTagClicked();
             }
-            // 输入框为空 -> 执行保存操作
             else {
                 onSaveClicked();
             }
@@ -487,7 +450,6 @@ bool TaskDialog::eventFilter(QObject *obj, QEvent *event)
         }
     }
 
-    // 处理横向滚动
     if (event->type() == QEvent::Wheel) {
         QScrollArea *scrollArea = qobject_cast<QScrollArea*>(obj);
         if (scrollArea && (scrollArea == ui->scrollAreaSelectedTags || scrollArea == ui->scrollAreaExistingTags)) {

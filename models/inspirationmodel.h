@@ -14,32 +14,36 @@ public:
     explicit InspirationModel(QObject *parent = nullptr);
     ~InspirationModel();
 
-    // QAbstractTableModel 接口
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
 
-    // 自定义操作
     bool addInspiration(const QString &content, const QString &tags = "");
     bool updateInspiration(int id, const QString &content, const QString &tags = "");
     bool deleteInspiration(int id);
     bool deleteInspirations(const QList<int> &ids);
 
-    // 查询操作
     QList<QVariantMap> getAllInspirations() const;
     QList<QVariantMap> getInspirationsByDate(const QDate &date) const;
     QList<QVariantMap> getInspirationsByTag(const QString &tag) const;
     QList<QVariantMap> searchInspirations(const QString &keyword) const;
 
-    // 统计操作
     int getInspirationCount() const;
     QList<QDate> getDatesWithInspirations() const;
+    QList<QDate> getDatesWithInspirations(const QStringList &filterTags, bool matchAll) const;
     QStringList getAllTags() const;
 
-    // 刷新数据
     void refresh();
+
+    bool restoreInspiration(int id);
+    bool permanentDeleteInspiration(int id);
+    QList<QVariantMap> getDeletedInspirations() const;
+    bool emptyRecycleBin();
+
+    bool renameTag(const QString &oldName, const QString &newName);
+    bool removeTagFromAll(const QString &tagName);
 
 signals:
     void inspirationAdded(int id);

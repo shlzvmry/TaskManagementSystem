@@ -13,8 +13,8 @@ struct TaskItem {
     int categoryId;
     QString categoryName;
     QString categoryColor;
-    int priority;           // 0:紧急, 1:重要, 2:普通, 3:不急
-    int status;            // 0:待办, 1:进行中, 2:已完成, 3:已延期
+    int priority;
+    int status;
     QDateTime startTime;
     QDateTime deadline;
     QDateTime remindTime;
@@ -27,11 +27,9 @@ struct TaskItem {
     QList<QString> tagNames;
     QList<QString> tagColors;
 
-    // 转换函数
     QVariantMap toVariantMap() const;
     static TaskItem fromVariantMap(const QVariantMap &data);
 
-    // 工具函数
     QString priorityText() const;
     QString statusText() const;
     QColor priorityColor() const;

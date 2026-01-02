@@ -20,7 +20,6 @@ QVariantMap TaskItem::toVariantMap() const {
     map["updated_at"] = updatedAt;
     map["completed_at"] = completedAt;
 
-    // 标签处理
     QVariantList tagIdList, tagNameList, tagColorList;
     for (int tagId : tagIds) tagIdList.append(tagId);
     for (const QString &tagName : tagNames) tagNameList.append(tagName);
@@ -52,7 +51,6 @@ TaskItem TaskItem::fromVariantMap(const QVariantMap &data) {
     item.updatedAt = data["updated_at"].toDateTime();
     item.completedAt = data["completed_at"].toDateTime();
 
-    // 标签处理
     QVariantList tagIds = data["tag_ids"].toList();
     QVariantList tagNames = data["tag_names"].toList();
     QVariantList tagColors = data["tag_colors"].toList();
@@ -105,7 +103,7 @@ QColor TaskItem::statusColor() const {
 }
 
 bool TaskItem::isOverdue() const {
-    if (status == 2) return false; // 已完成的任务不算逾期
+    if (status == 2) return false;
     if (!deadline.isValid()) return false;
     return deadline < QDateTime::currentDateTime();
 }

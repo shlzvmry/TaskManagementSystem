@@ -18,7 +18,6 @@ void PriorityWidget::setupUI()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(5);
 
-    // 创建四个优先级按钮
     QStringList priorityTexts = {"紧急", "重要", "普通", "不急"};
 
     for (int i = 0; i < 4; ++i) {
@@ -32,7 +31,6 @@ void PriorityWidget::setupUI()
         layout->addWidget(button);
     }
 
-    // 默认选择"普通"优先级
     m_buttons[2]->setChecked(true);
 
     connect(m_buttonGroup, &QButtonGroup::idClicked,
@@ -90,10 +88,10 @@ QString PriorityWidget::getPriorityText(int priority)
 QColor PriorityWidget::getPriorityColor(int priority)
 {
     switch (priority) {
-    case 0: return QColor("#FF4444"); // 红色
-    case 1: return QColor("#FF9900"); // 橙色
-    case 2: return QColor("#4CAF50"); // 绿色
-    case 3: return QColor("#9E9E9E"); // 灰色
-    default: return QColor("#657896"); // 主题色
+    case 0: return QColor("#FF4444");
+    case 1: return QColor("#FF9900");
+    case 2: return QColor("#4CAF50");
+    case 3: return QColor("#9E9E9E");
+    default: return QColor("#657896");
     }
 }

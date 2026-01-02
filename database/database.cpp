@@ -41,15 +41,13 @@ bool Database::initDatabase()
         qDebug() << "数据库文件不存在，将自动创建";
     }
 
-    // 先关闭之前的连接
     if (db.isOpen()) {
         QString connectionName = db.connectionName();
         db.close();
-        db = QSqlDatabase(); // 重置
+        db = QSqlDatabase();
         QSqlDatabase::removeDatabase(connectionName);
     }
 
-    // 创建数据库连接
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(dbPath);
 
@@ -58,10 +56,8 @@ bool Database::initDatabase()
         return false;
     }
 
-    // 启用外键约束
     executeQuery("PRAGMA foreign_keys = ON");
 
-    // 如果是新数据库，创建表结构
     if (needCreate) {
         createTables();
         initDefaultData();
@@ -73,7 +69,6 @@ bool Database::initDatabase()
 
 void Database::createTables()
 {
-    // 1. 任务分类表
     executeQuery(
         "CREATE TABLE IF NOT EXISTS task_categories ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -83,7 +78,6 @@ void Database::createTables()
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
         );
 
-    // 2. 任务标签表
     executeQuery(
         "CREATE TABLE IF NOT EXISTS task_tags ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -92,7 +86,6 @@ void Database::createTables()
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
         );
 
-    // 3. 任务表
     executeQuery(
         "CREATE TABLE IF NOT EXISTS tasks ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -112,7 +105,6 @@ void Database::createTables()
         "FOREIGN KEY (category_id) REFERENCES task_categories (id))"
         );
 
-    // 4. 任务-标签关联表
     executeQuery(
         "CREATE TABLE IF NOT EXISTS task_tag_relations ("
         "task_id INTEGER NOT NULL, "
@@ -123,17 +115,16 @@ void Database::createTables()
         "FOREIGN KEY (tag_id) REFERENCES task_tags (id) ON DELETE CASCADE)"
         );
 
-    // 5. 灵感记录表
     executeQuery(
         "CREATE TABLE IF NOT EXISTS inspirations ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "content TEXT NOT NULL, "
         "tags TEXT, "
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
-        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+        "is_deleted INTEGER DEFAULT 0)"
         );
 
-    // 6. 用户设置表
     executeQuery(
         "CREATE TABLE IF NOT EXISTS user_settings ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -146,7 +137,6 @@ void Database::createTables()
 
 void Database::initDefaultData()
 {
-    // 插入默认分类
     QStringList defaults = {"作业", "物资增添", "个人生活", "考试", "复习安排", "工作"};
     QStringList colors = {"#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD"};
 
@@ -291,7 +281,6 @@ bool Database::deleteTag(int tagId)
 
     db.transaction();
 
-    // 删除关联关系
     QSqlQuery deleteRelationQuery(db);
     deleteRelationQuery.prepare("DELETE FROM task_tag_relations WHERE tag_id = ?");
     deleteRelationQuery.addBindValue(tagId);
@@ -302,7 +291,6 @@ bool Database::deleteTag(int tagId)
         return false;
     }
 
-    //删除标签本身
     QSqlQuery deleteTagQuery(db);
     deleteTagQuery.prepare("DELETE FROM task_tags WHERE id = ?");
     deleteTagQuery.addBindValue(tagId);

@@ -16,6 +16,8 @@ public:
     void setTaskModel(TaskModel *model);
     void setInspirationModel(class InspirationModel *model);
     void refreshTasks();
+    void setFilter(int categoryId, int priority);
+    void setInspirationFilter(const QStringList &tags, bool matchAll);
 
 signals:
     void showInspirations(const QDate &date);
@@ -32,12 +34,16 @@ private:
     QMap<QDate, QColor> m_taskStatusColors;
     QList<QDate> m_inspirationDates;
 
-    // 新增：缓存用于点击检测
     mutable QMap<QDate, QRect> m_inspRects;
     mutable QMap<QDate, QRect> m_taskRects;
 
     void updateTaskCache();
-    QTableView* getInternalView() const; // 获取内部表格视图
+    QTableView* getInternalView() const;
+
+    int m_filterCategoryId = -1;
+    int m_filterPriority = -1;
+    QStringList m_inspFilterTags;
+    bool m_inspFilterMatchAll = false;
 };
 
 #endif // CALENDARVIEW_H

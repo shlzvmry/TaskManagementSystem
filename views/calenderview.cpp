@@ -12,6 +12,8 @@ CalendarView::CalendarView(QWidget *parent)
     : QCalendarWidget(parent)
     , m_model(nullptr)
     , m_inspirationModel(nullptr)
+    , m_filterCategoryId(-1)
+    , m_filterPriority(-1)
 {
     setGridVisible(true);
     setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
@@ -21,10 +23,9 @@ CalendarView::CalendarView(QWidget *parent)
     setWeekdayTextFormat(Qt::Saturday, weekendFormat);
     setWeekdayTextFormat(Qt::Sunday, weekendFormat);
 
-    // 安装事件过滤器到内部的 QTableView 视口，以检测精确点击
     if (QTableView *view = getInternalView()) {
         view->viewport()->installEventFilter(this);
-        view->setMouseTracking(true); // 开启鼠标追踪以支持悬停效果
+        view->setMouseTracking(true);
     }
 }
 
@@ -56,7 +57,7 @@ void CalendarView::setInspirationModel(InspirationModel *model)
 void CalendarView::refreshTasks()
 {
     updateTaskCache();
-    update(); // 触发重绘
+    update();
 }
 
 void CalendarView::updateTaskCache()
@@ -64,11 +65,9 @@ void CalendarView::updateTaskCache()
     m_taskStatusColors.clear();
     m_inspirationDates.clear();
 
-    // 1. 更新任务状态缓存
-    if (m_model) {
-        QList<QVariantMap> tasks = m_model->getAllTasks(false); // 获取未删除的任务
+    if (m_model && m_filterCategoryId != -2) {
+        QList<QVariantMap> tasks = m_model->getAllTasks(false);
 
-        // 临时存储每一天的状态统计
         struct DayStats {
             bool hasDelayed = false;
             bool hasInProgress = false;
@@ -79,6 +78,13 @@ void CalendarView::updateTaskCache()
         QMap<QDate, DayStats> statsMap;
 
         for (const QVariantMap &task : tasks) {
+            if (m_filterCategoryId != -1) {
+                if (task["category_id"].toInt() != m_filterCategoryId) continue;
+            }
+            if (m_filterPriority != -1) {
+                if (task["priority"].toInt() != m_filterPriority) continue;
+            }
+
             QDateTime deadline = task["deadline"].toDateTime();
             if (!deadline.isValid()) continue;
 
@@ -87,27 +93,20 @@ void CalendarView::updateTaskCache()
             stats.totalCount++;
 
             int status = task["status"].toInt();
-            // 0:待办, 1:进行中, 2:已完成, 3:已延期
             if (status == 3) stats.hasDelayed = true;
             else if (status == 1) stats.hasInProgress = true;
             else if (status == 0) stats.hasTodo = true;
             else if (status == 2) stats.completedCount++;
         }
 
-        // 根据规则生成颜色
         for (auto it = statsMap.begin(); it != statsMap.end(); ++it) {
             const DayStats &s = it.value();
             QColor color;
 
-            if (s.hasDelayed) {
-                color = QColor("#F44336"); // 红色 (存在已延期)
-            } else if (s.hasInProgress) {
-                color = QColor("#FF9800"); // 黄色 (存在进行中)
-            } else if (s.hasTodo) {
-                color = QColor("#2196F3"); // 蓝色 (存在待办)
-            } else if (s.totalCount > 0 && s.totalCount == s.completedCount) {
-                color = QColor("#4CAF50"); // 绿色 (全部完成)
-            }
+            if (s.hasDelayed) color = QColor("#F44336");
+            else if (s.hasInProgress) color = QColor("#FF9800");
+            else if (s.hasTodo) color = QColor("#2196F3");
+            else if (s.totalCount > 0 && s.totalCount == s.completedCount) color = QColor("#4CAF50");
 
             if (color.isValid()) {
                 m_taskStatusColors[it.key()] = color;
@@ -115,9 +114,8 @@ void CalendarView::updateTaskCache()
         }
     }
 
-    // 2. 更新灵感缓存
-    if (m_inspirationModel) {
-        m_inspirationDates = m_inspirationModel->getDatesWithInspirations();
+    if (m_inspirationModel && (m_filterCategoryId == -1 || m_filterCategoryId == -2)) {
+        m_inspirationDates = m_inspirationModel->getDatesWithInspirations(m_inspFilterTags, m_inspFilterMatchAll);
     }
 }
 
@@ -131,25 +129,21 @@ void CalendarView::paintCell(QPainter *painter, const QRect &rect, QDate date) c
     int dotSize = 12;
     int margin = 4;
 
-    // 清理旧数据 (如果是重绘整个控件，可以在 paintEvent 前清理，但这里是逐格绘制)
-    // 为了简单，我们直接覆盖
     m_inspRects.remove(date);
     m_taskRects.remove(date);
 
-    // 1. 绘制灵感点 (左下角，紫色)
     if (m_inspirationDates.contains(date)) {
         QRect inspRect(rect.left() + margin, rect.bottom() - margin - dotSize, dotSize, dotSize);
-        m_inspRects[date] = inspRect; // 缓存区域
+        m_inspRects[date] = inspRect;
 
         painter->setBrush(QColor("#9b59b6"));
         painter->setPen(Qt::NoPen);
         painter->drawEllipse(inspRect);
     }
 
-    // 2. 绘制任务点 (右下角，根据状态变色)
     if (m_taskStatusColors.contains(date)) {
         QRect taskRect(rect.right() - margin - dotSize, rect.bottom() - margin - dotSize, dotSize, dotSize);
-        m_taskRects[date] = taskRect; // 缓存区域
+        m_taskRects[date] = taskRect;
 
         QColor dotColor = m_taskStatusColors[date];
         painter->setBrush(dotColor);
@@ -172,24 +166,35 @@ bool CalendarView::eventFilter(QObject *watched, QEvent *event)
         QMouseEvent *me = static_cast<QMouseEvent*>(event);
         QPoint pos = me->pos();
 
-        // 扩大点击判定范围 (+2px)
         int tolerance = 2;
 
-        // 检查灵感点点击
         for (auto it = m_inspRects.begin(); it != m_inspRects.end(); ++it) {
             if (it.value().adjusted(-tolerance, -tolerance, tolerance, tolerance).contains(pos)) {
                 emit showInspirations(it.key());
-                return true; // 拦截
+                return true;
             }
         }
 
-        // 检查任务点点击
         for (auto it = m_taskRects.begin(); it != m_taskRects.end(); ++it) {
             if (it.value().adjusted(-tolerance, -tolerance, tolerance, tolerance).contains(pos)) {
                 emit showTasks(it.key());
-                return true; // 拦截
+                return true;
             }
         }
     }
     return QCalendarWidget::eventFilter(watched, event);
+}
+
+void CalendarView::setFilter(int categoryId, int priority)
+{
+    m_filterCategoryId = categoryId;
+    m_filterPriority = priority;
+    refreshTasks();
+}
+
+void CalendarView::setInspirationFilter(const QStringList &tags, bool matchAll)
+{
+    m_inspFilterTags = tags;
+    m_inspFilterMatchAll = matchAll;
+    refreshTasks();
 }

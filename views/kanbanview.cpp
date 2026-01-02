@@ -35,7 +35,6 @@ void KanbanDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option
     QDateTime deadline = index.data(TaskModel::DeadlineRole).toDateTime();
     QDateTime completedAt = index.data(TaskModel::CompletedAtRole).toDateTime();
 
-    // 绘制背景
     QRect rect = option.rect.adjusted(4, 3, -4, -3);
 
     QColor cardBgColor = QColor("#3d3d3d");
@@ -43,7 +42,6 @@ void KanbanDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option
     QColor subTextColor = QColor("#aaaaaa");
     QColor tagBgColor = QColor("#4d4d4d");
 
-    // 选中状态
     if (option.state & QStyle::State_Selected) {
         painter->setBrush(QColor("#4a5a6d"));
         painter->setPen(QColor("#657896"));
@@ -54,7 +52,6 @@ void KanbanDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option
 
     painter->drawRoundedRect(rect, 4, 4);
 
-    // 优先级色条
     QRect colorStrip = rect;
     colorStrip.setWidth(4);
     painter->setBrush(priorityColor);
@@ -62,23 +59,19 @@ void KanbanDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option
     painter->drawRoundedRect(colorStrip.adjusted(0,0,0,0), 4, 4, Qt::AbsoluteSize);
     painter->drawRect(colorStrip.adjusted(2,0,0,0));
 
-    // --- 绘制内容布局调整 ---
     int leftPadding = 14;
     int rightPadding = 8;
 
-    // 1. 标题
     QFont titleFont = painter->font();
     titleFont.setBold(true);
     titleFont.setPointSize(10);
     painter->setFont(titleFont);
     painter->setPen(textColor);
 
-    // 标题区域高度
     QRect titleRect = rect.adjusted(leftPadding, 8, -rightPadding, -28);
     QString elidedTitle = painter->fontMetrics().elidedText(title, Qt::ElideRight, titleRect.width());
     painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignTop, elidedTitle);
 
-    // 2. 分类标签 (左下)
     QFont tagFont = painter->font();
     tagFont.setPointSize(8);
     painter->setFont(tagFont);
@@ -94,19 +87,17 @@ void KanbanDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option
     painter->setPen(subTextColor);
     painter->drawText(catRect, Qt::AlignCenter, category);
 
-    // 3. 时间显示 (右下)
     QString timeStr;
     QString prefix;
 
-    if (status == 2) { // 已完成
+    if (status == 2) {
         if (completedAt.isValid()) {
             timeStr = completedAt.toString("MM-dd");
             prefix = "√ ";
         }
-    } else { // 其他状态
+    } else {
         if (deadline.isValid()) {
             timeStr = deadline.toString("MM-dd");
-            // 逾期标红
             if (index.data(TaskModel::IsOverdueRole).toBool()) {
                 painter->setPen(QColor("#FF6B6B"));
             }
@@ -129,14 +120,12 @@ KanbanColumn::KanbanColumn(int value, QWidget *parent)
 {
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    // --- 丝滑滚动关键设置 ---
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     setUniformItemSizes(true);
 
     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setResizeMode(QListView::Adjust);
 
-    // 拖拽设置
     setAcceptDrops(true);
     setDragEnabled(true);
     setDragDropMode(QAbstractItemView::DragDrop);
@@ -147,9 +136,7 @@ KanbanColumn::KanbanColumn(int value, QWidget *parent)
 
     setItemDelegate(new KanbanDelegate(this));
 
-    // 连接双击信号
     connect(this, &QListView::doubleClicked, this, [this](const QModelIndex &index){
-        // 通过代理模型获取源数据ID
         int taskId = index.data(TaskModel::IdRole).toInt();
         if (taskId > 0) {
             emit taskDoubleClicked(taskId);
@@ -182,14 +169,12 @@ void KanbanColumn::startDrag(Qt::DropActions supportedActions)
     QModelIndexList indexes = selectionModel()->selectedIndexes();
     if (indexes.isEmpty()) return;
 
-    // 获取 MIME 数据
     QMimeData *mimeData = model()->mimeData(indexes);
     if (!mimeData) return;
 
     QDrag *drag = new QDrag(this);
     drag->setMimeData(mimeData);
 
-    // 设置拖拽时的视觉反馈
     QPixmap pixmap(viewport()->visibleRegion().boundingRect().size());
     pixmap.fill(Qt::transparent);
     QPainter painter(&pixmap);
@@ -231,7 +216,6 @@ void KanbanView::setupUI()
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
 
-    // 列容器
     QWidget *columnContainer = new QWidget(this);
     m_columnLayout = new QHBoxLayout(columnContainer);
     m_columnLayout->setSpacing(10);
@@ -239,7 +223,6 @@ void KanbanView::setupUI()
 
     mainLayout->addWidget(columnContainer);
 
-    // 初始化列
     refreshColumns();
 }
 
@@ -253,13 +236,11 @@ void KanbanView::setGroupMode(GroupMode mode)
 
 void KanbanView::refreshColumns()
 {
-    // 清理现有列和过滤器
     qDeleteAll(m_columns);
     m_columns.clear();
     qDeleteAll(m_filters);
     m_filters.clear();
 
-    // 清理布局中的控件
     QLayoutItem *item;
     while ((item = m_columnLayout->takeAt(0)) != nullptr) {
         if (item->widget()) {
@@ -268,7 +249,6 @@ void KanbanView::refreshColumns()
         delete item;
     }
 
-    // 根据模式创建列
     if (m_groupMode == GroupByStatus) {
         createColumn("待办", 0, "#3498db");
         createColumn("进行中", 1, "#e67e22");
@@ -281,7 +261,6 @@ void KanbanView::refreshColumns()
         createColumn("不急", 3, "#9E9E9E");
     }
 
-    // 如果模型已设置，重新应用模型和过滤器
     if (m_model) {
         setModel(m_model);
     }
@@ -296,13 +275,11 @@ KanbanColumn* KanbanView::createColumn(const QString &title, int value, const QS
     QVBoxLayout *layout = new QVBoxLayout(columnWidget);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    // 标题栏
     QLabel *header = new QLabel(title, columnWidget);
     header->setAlignment(Qt::AlignCenter);
     header->setStyleSheet("font-weight: bold; font-size: 14px; padding: 8px; color: #888;");
     layout->addWidget(header);
 
-    // 列表
     KanbanColumn *list = new KanbanColumn(value, columnWidget);
     layout->addWidget(list);
 
@@ -324,22 +301,19 @@ void KanbanView::setModel(TaskModel *model)
         TaskFilterModel *filter = new TaskFilterModel(this);
         filter->setSourceModel(model);
 
-        // 根据模式配置过滤器
         if (m_groupMode == GroupByStatus) {
             filter->setFilterMode(TaskFilterModel::FilterStatus);
             filter->setFilterStatus(col->getValue());
-            filter->setFilterPriority(-1); // 清除优先级过滤
+            filter->setFilterPriority(-1);
         } else {
-            // 优先级模式下，显示所有非删除任务（包括已完成），并按优先级过滤
             filter->setFilterMode(TaskFilterModel::FilterAll);
             filter->setFilterPriority(col->getValue());
-            filter->setFilterStatus(-1); // 清除状态过滤
+            filter->setFilterStatus(-1);
         }
 
         col->setModel(filter);
         m_filters.append(filter);
 
-        // 处理拖拽放置
         connect(col, &KanbanColumn::taskDropped, this, [this](int taskId, int newValue){
             QVariantMap data;
             if (m_groupMode == GroupByStatus) {
@@ -350,7 +324,6 @@ void KanbanView::setModel(TaskModel *model)
             m_model->updateTask(taskId, data);
         });
 
-        // 处理双击编辑
         connect(col, &KanbanColumn::taskDoubleClicked, this, &KanbanView::editTaskRequested);
     }
 }
