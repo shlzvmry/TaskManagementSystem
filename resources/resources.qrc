@@ -14,5 +14,6 @@
         <file>styles/dialog.qss</file>
         <file>icons/left_arrow.png</file>
         <file>icons/right_arrow.png</file>
+        <file>styles/statistic.qss</file>
     </qresource>
 </RCC>

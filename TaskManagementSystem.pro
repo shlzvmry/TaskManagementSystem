@@ -1,7 +1,4 @@
-QT       += core gui sql
-#QT       += charts
-#QT       += printsupport
-
+QT       += core gui sql printsupport
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -30,12 +27,14 @@ SOURCES += \
     models/inspirationmodel.cpp \
     models/taskfiltermodel.cpp \
     models/taskitem.cpp \
+    models/statisticmodel.cpp
 
 HEADERS += \
     models/taskmodel.h \
     models/inspirationmodel.h \
     models/taskfiltermodel.h \
     models/taskitem.h\
+    models/statisticmodel.h
 
 #视图模块
 SOURCES += \
@@ -43,12 +42,14 @@ SOURCES += \
     views/calenderview.cpp \
     views/tasktableview.cpp \
     views/inspirationview.cpp\
+    views/statisticview.cpp\
 
 HEADERS += \
     views/kanbanview.h \
     views/calenderview.h \
     views/tasktableview.h \
     views/inspirationview.h\
+    views/statisticview.h\
 
 #对话框模块
 SOURCES += \
@@ -80,6 +81,7 @@ SOURCES += \
     widgets/prioritywidget.cpp \
     widgets/statuswidget.cpp \
     widgets/comboboxdelegate.cpp\
+    widgets/simplechartwidget.cpp \
 
 HEADERS += \
     widgets/watermarkwidget.h \
@@ -87,6 +89,14 @@ HEADERS += \
     widgets/prioritywidget.h \
     widgets/statuswidget.h \
     widgets/comboboxdelegate.h\
+    widgets/simplechartwidget.h \
+
+#工具模块
+SOURCES += \
+    utils/exporter.cpp \
+
+HEADERS += \
+   utils/exporter.h \
 
 # 包含路径
 INCLUDEPATH += \
@@ -95,6 +105,7 @@ INCLUDEPATH += \
     $$PWD/models \
     $$PWD/dialogs \
     $$PWD/views \
+    $$PWD/utils\
 
 # Default rules for deployment.
 CODECFORTR = UTF-8

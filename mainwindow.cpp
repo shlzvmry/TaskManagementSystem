@@ -13,6 +13,8 @@
 #include "views/tasktableview.h"
 #include "views/inspirationview.h"
 #include "dialogs/inspirationdialog.h"
+#include "views/statisticview.h"
+#include "models/statisticmodel.h"
 
 #include <QStackedWidget>
 #include <QComboBox>
@@ -64,6 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     taskModel = new TaskModel(this);
     inspirationModel = new InspirationModel(this);
+    statisticModel = new StatisticModel(this);
 
     recycleBinDialog = new RecycleBinDialog(this);
     recycleBinDialog->setTaskModel(taskModel);
@@ -430,15 +433,21 @@ void MainWindow::createStatisticTab()
 {
     QWidget *statisticTab = new QWidget();
     QVBoxLayout *layout = new QVBoxLayout(statisticTab);
+    layout->setContentsMargins(0, 0, 0, 0);
 
-    QLabel *statLabel = new QLabel("统计分析将显示在这里", statisticTab);
-    statLabel->setObjectName("statisticLabel");
-    statLabel->setAlignment(Qt::AlignCenter);
-    statLabel->setMinimumHeight(400);
+    statisticView = new StatisticView(statisticTab);
+    statisticView->setModels(taskModel, statisticModel);
 
-    layout->addWidget(statLabel);
+    layout->addWidget(statisticView);
 
     tabWidget->addTab(statisticTab, "统计分析");
+
+    // 切换到统计标签页时刷新数据
+    connect(tabWidget, &QTabWidget::currentChanged, this, [this](int index) {
+        if (tabWidget->tabText(index) == "统计分析") {
+            statisticView->refresh();
+        }
+    });
 }
 
 void MainWindow::createSettingTab()
@@ -797,6 +806,7 @@ void MainWindow::loadStyleSheet()
         ":/styles/kanban.qss",
         ":/styles/calendar.qss",
         ":/styles/dialog.qss",
+        ":/styles/statistic.qss",
 
     };
 

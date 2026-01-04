@@ -239,7 +239,7 @@ void InspirationView::setupUI()
     centerBtnLayout->addWidget(calendarViewBtn);
 
     QWidget *rightDummy = new QWidget(this);
-    rightDummy->setFixedWidth(220);
+    rightDummy->setFixedWidth(195);
 
     bottomLayout->addWidget(m_leftBottomContainer);
     bottomLayout->addStretch();

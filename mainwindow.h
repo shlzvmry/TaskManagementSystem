@@ -60,6 +60,7 @@ private:
 
     TaskModel *taskModel;
     InspirationModel *inspirationModel;
+    class StatisticModel *statisticModel;
 
     QTableView *taskTableView;
     QSplitter *taskSplitter;
@@ -68,6 +69,7 @@ private:
 
     class KanbanView *kanbanView;
     class CalendarView *calendarView;
+    class StatisticView *statisticView;
     class QStackedWidget *viewStack;
 
     class QComboBox *filterCategoryCombo;
