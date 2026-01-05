@@ -20,12 +20,18 @@
 #include <QStandardPaths>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QTimer>
 
 StatisticView::StatisticView(QWidget *parent) : QWidget(parent)
 {
+    // 初始化防抖定时器
+    m_refreshTimer = new QTimer(this);
+    m_refreshTimer->setSingleShot(true);
+    m_refreshTimer->setInterval(300); // 300ms 延迟
+    connect(m_refreshTimer, &QTimer::timeout, this, &StatisticView::onFilterChanged);
+
     setupUI();
 }
-
 void StatisticView::setupUI()
 {
     this->setObjectName("statisticView");
@@ -72,12 +78,14 @@ void StatisticView::setupUI()
     });
     m_endDateEdit->setMinimumDate(m_startDateEdit->date());
 
-    // 修改：手动修改日期时，自动切换到“自定义”模式，并更新图表
     auto switchToCustom = [this]() {
+        // 阻断信号防止递归调用 onTimeRangeTypeChanged
         bool oldState = m_timeRangeCombo->blockSignals(true);
-        m_timeRangeCombo->setCurrentIndex(4);
+        m_timeRangeCombo->setCurrentIndex(4); // 4 是 "自定义" 的索引
         m_timeRangeCombo->blockSignals(oldState);
-        onFilterChanged();
+
+        // 使用防抖刷新，防止滚轮快速滚动导致卡死
+        requestDelayedRefresh();
     };
 
     // 使用 userDateChanged 仅响应用户手动操作
@@ -427,4 +435,10 @@ void StatisticView::onExportPDF()
     } else {
         QMessageBox::warning(this, "错误", "生成PDF失败。");
     }
+}
+
+void StatisticView::requestDelayedRefresh()
+{
+    // 每次调用都会重置定时器，只有停止操作 300ms 后才会触发 timeout
+    m_refreshTimer->start();
 }
