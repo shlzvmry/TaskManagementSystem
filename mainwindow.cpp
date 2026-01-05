@@ -7,7 +7,6 @@
 #include "dialogs/recyclebindialog.h"
 #include "dialogs/tagmanagerdialog.h"
 #include "models/taskfiltermodel.h"
-#include "widgets/comboboxdelegate.h"
 #include "views/kanbanview.h"
 #include "views/calenderview.h"
 #include "views/tasktableview.h"
@@ -538,9 +537,23 @@ void MainWindow::setupConnections()
                                 .arg(taskModel->getCompletedCount())
                                 .arg(taskModel->getDeletedTaskCount()));
         });
-
     }
+
+    // --- 自动检查逾期任务逻辑 ---
+    overdueCheckTimer = new QTimer(this);
+    connect(overdueCheckTimer, &QTimer::timeout, this, [this]() {
+        if (taskModel) {
+            taskModel->checkOverdueTasks();
+        }
+    });
+    overdueCheckTimer->start(60000); // 每60秒检查一次
+
+    // 启动后延迟1秒执行一次初次检查
+    QTimer::singleShot(1000, this, [this](){
+        if (taskModel) taskModel->checkOverdueTasks();
+    });
 }
+
 void MainWindow::onRecycleBinClicked()
 {
     if (recycleBinDialog) {

@@ -9,6 +9,7 @@
 #include <QVBoxLayout>
 #include <QTableView>
 #include <QSplitter>
+#include <QTimer>
 
 class TaskModel;
 class InspirationModel;
@@ -78,6 +79,7 @@ private:
     class QPushButton *kanbanGroupBtn;
 
     RecycleBinDialog *recycleBinDialog;
+    QTimer *overdueCheckTimer;
 
     TaskFilterModel *uncompletedProxyModel;
     TaskFilterModel *completedProxyModel;

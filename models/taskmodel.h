@@ -73,7 +73,7 @@ public:
     QList<QVariantMap> getTasksByCategory(int categoryId) const;
     QList<QVariantMap> getTasksByTag(int tagId) const;
     QList<QVariantMap> getDeletedTasks() const;
-
+    void checkOverdueTasks();
     void refresh(bool showDeleted = false);
 
     static QMap<int, QString> getPriorityOptions();

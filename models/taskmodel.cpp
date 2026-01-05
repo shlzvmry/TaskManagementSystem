@@ -736,6 +736,34 @@ double TaskModel::getCompletionRate() const
     return static_cast<double>(completed) / total * 100.0;
 }
 
+void TaskModel::checkOverdueTasks()
+{
+    QSqlDatabase db = getDbConnection();
+    if (!db.isOpen()) return;
+
+    QDateTime now = QDateTime::currentDateTime();
+
+    // 1. 先查询是否有需要更新的任务，避免无意义的 refresh 导致界面闪烁
+    QSqlQuery checkQuery(db);
+    checkQuery.prepare("SELECT COUNT(*) FROM tasks WHERE is_deleted = 0 AND status IN (0, 1) AND deadline < ?");
+    checkQuery.addBindValue(now);
+
+    if (checkQuery.exec() && checkQuery.next()) {
+        if (checkQuery.value(0).toInt() > 0) {
+            // 2. 执行批量更新：将待办(0)和进行中(1)且超时的任务设为已延期(3)
+            QSqlQuery updateQuery(db);
+            updateQuery.prepare("UPDATE tasks SET status = 3, updated_at = ? WHERE is_deleted = 0 AND status IN (0, 1) AND deadline < ?");
+            updateQuery.addBindValue(now);
+            updateQuery.addBindValue(now);
+
+            if (updateQuery.exec()) {
+                qDebug() << "检测到逾期任务，已自动更新状态";
+                refresh(showingDeleted); // 刷新模型以更新UI
+            }
+        }
+    }
+}
+
 QDateTime TaskModel::getCurrentTimestamp() const
 {
     return QDateTime::currentDateTime();
