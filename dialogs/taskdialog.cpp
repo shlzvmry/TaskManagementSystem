@@ -125,6 +125,7 @@ void TaskDialog::initDateTimeEdits()
     QDateTime now = QDateTime::currentDateTime();
     QDateTime tomorrow = now.addDays(1);
 
+    // 设置默认截止时间为明天同一时间
     ui->dateTimeEditStart->setDateTime(now);
     ui->dateTimeEditStart->setMinimumDateTime(now.addYears(-1));
     ui->dateTimeEditStart->setDisplayFormat("yyyy-MM-dd HH:mm");
@@ -133,7 +134,17 @@ void TaskDialog::initDateTimeEdits()
     ui->dateTimeEditDeadline->setMinimumDateTime(now);
     ui->dateTimeEditDeadline->setDisplayFormat("yyyy-MM-dd HH:mm");
 
-    ui->dateTimeEditRemind->setDateTime(tomorrow.addSecs(-3600));
+    // --- 读取默认提醒时间设置 ---
+    int remindMins = Database::instance().getSetting("default_remind_minutes", "60").toInt();
+
+    if (remindMins > 0) {
+        // 提醒时间 = 截止时间 - 提前量
+        ui->dateTimeEditRemind->setDateTime(tomorrow.addSecs(-remindMins * 60));
+    } else {
+        // 如果设置为0，默认不提醒(或者设为截止时间)
+        ui->dateTimeEditRemind->setDateTime(tomorrow);
+    }
+
     ui->dateTimeEditRemind->setMinimumDateTime(now);
     ui->dateTimeEditRemind->setDisplayFormat("yyyy-MM-dd HH:mm");
 }

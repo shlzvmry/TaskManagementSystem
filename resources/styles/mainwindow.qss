@@ -366,3 +366,74 @@ QMenu::separator {
 QMenu::icon {
     padding-left: 10px;
 }
+
+/* 系统设置页面样式 */
+QGroupBox {
+    border: 1px solid #3d3d3d;
+    border-radius: 6px;
+    margin-top: 12px;
+    padding-top: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #cccccc;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0 5px;
+    color: #657896;
+}
+
+/* --- 系统设置页面卡片式布局 --- */
+
+/* 卡片容器 */
+QFrame[class="settingCard"] {
+    background-color: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 8px;
+}
+
+/* 卡片标题 */
+QLabel[class="cardTitle"] {
+    font-size: 14px;
+    font-weight: bold;
+    color: #657896;
+    border-left: 4px solid #657896;
+    padding-left: 8px;
+}
+
+/* 强制修复设置页面的下拉框背景 */
+QComboBox#settingCombo {
+    background-color: #333333; /* 强制深灰色背景 */
+    color: #ffffff;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-height: 28px;
+}
+
+QComboBox#settingCombo:hover {
+    border: 1px solid #657896;
+    background-color: #3d3d3d;
+}
+
+QComboBox#settingCombo::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QComboBox#settingCombo QAbstractItemView {
+    background-color: #333333; /* 下拉列表背景 */
+    color: #ffffff;
+    selection-background-color: #657896;
+    border: 1px solid #3d3d3d;
+    outline: none;
+}
+
+/* 设置页面里的复选框 */
+QFrame[class="settingCard"] QCheckBox {
+    spacing: 10px;
+    font-size: 13px;
+}

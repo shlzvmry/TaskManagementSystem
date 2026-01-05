@@ -10,6 +10,8 @@
 #include <QTableView>
 #include <QSplitter>
 #include <QTimer>
+#include <QCloseEvent>
+#include <QCheckBox>
 
 class TaskModel;
 class InspirationModel;
@@ -32,6 +34,7 @@ public:
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason);
@@ -96,6 +99,14 @@ private:
     RemindThread *remindThread;
     QListWidget *settingCategoryList;
     QLineEdit *settingCategoryEdit;
+    QComboBox *defaultViewCombo;
+    QComboBox *themeColorCombo;      // 主题色选择
+    QComboBox *startDayCombo;        // 日历起始日
+    QComboBox *defaultRemindCombo;   // 默认提醒时间
+    QCheckBox *autoPurgeCheck;       // 自动清理回收站开关
+
+    QWidget *categoryContainer;      // 分类管理的折叠容器
+    QPushButton *categoryToggleBtn;  // 分类管理的折叠按钮
 
     void setupSystemTray();
     void setupUI();
@@ -107,6 +118,8 @@ private:
     void createInspirationTab();
     void createStatisticTab();
     void createSettingTab();
+    void loadUserPreferences();
+    void updateThemeColor(const QString &color);
 
     void updateStatusBar(const QString &message);
     int getSelectedTaskId() const;
