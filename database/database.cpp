@@ -137,19 +137,9 @@ void Database::createTables()
 
 void Database::initDefaultData()
 {
-    QStringList defaults = {"作业", "物资增添", "个人生活", "考试", "复习安排", "工作"};
-    QStringList colors = {"#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD"};
-
-    db.transaction();
-    QSqlQuery query(db);
-    query.prepare("INSERT OR IGNORE INTO task_categories (name, color) VALUES (?, ?)");
-
-    for(int i=0; i<defaults.size(); ++i) {
-        query.addBindValue(defaults[i]);
-        query.addBindValue(colors[i % colors.size()]);
-        query.exec();
+    if (getSetting("first_run").isEmpty()) {
+        setSetting("first_run", "true");
     }
-    db.commit();
 }
 
 QSqlDatabase Database::getDatabase()
@@ -379,4 +369,81 @@ bool Database::ensureConnected()
         return initDatabase();
     }
     return true;
+}
+
+bool Database::backupDatabase(const QString &destPath)
+{
+    if (QFile::exists(destPath)) {
+        QFile::remove(destPath);
+    }
+    // 使用 SQLite 的 VACUUM INTO 命令进行在线热备份 (需要 SQLite >= 3.27)
+    // 如果 Qt 自带的 SQLite 版本较低，回退到文件复制（需确保无写入）
+    QSqlQuery query(db);
+    if (query.exec(QString("VACUUM INTO '%1'").arg(destPath))) {
+        return true;
+    }
+
+    // 备选方案：直接复制文件（简单场景下可用）
+    return QFile::copy(dbPath, destPath);
+}
+
+bool Database::restoreDatabase(const QString &srcPath)
+{
+    if (db.isOpen()) db.close();
+
+    if (QFile::exists(dbPath)) {
+        QFile::remove(dbPath);
+    }
+
+    if (QFile::copy(srcPath, dbPath)) {
+        return initDatabase(); // 重新打开
+    }
+    return false;
+}
+
+void Database::setSetting(const QString &key, const QString &value)
+{
+    QSqlQuery query(db);
+    query.prepare("INSERT OR REPLACE INTO user_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
+    query.addBindValue(key);
+    query.addBindValue(value);
+    query.exec();
+}
+
+QString Database::getSetting(const QString &key, const QString &defaultValue)
+{
+    QSqlQuery query(db);
+    query.prepare("SELECT value FROM user_settings WHERE key = ?");
+    query.addBindValue(key);
+    if (query.exec() && query.next()) {
+        return query.value(0).toString();
+    }
+    return defaultValue;
+}
+
+int Database::updateOverdueTasks()
+{
+    if (!db.isOpen()) return 0;
+    // 将状态不是"已完成"(2) 且 截止时间小于当前时间 的任务状态设为"已延期"(3)
+    QSqlQuery query(db);
+    query.prepare("UPDATE tasks SET status = 3, updated_at = CURRENT_TIMESTAMP "
+                  "WHERE status != 2 AND status != 3 AND deadline < CURRENT_TIMESTAMP AND is_deleted = 0");
+    if (query.exec()) {
+        return query.numRowsAffected();
+    }
+    return 0;
+}
+
+bool Database::clearCategories()
+{
+    QSqlQuery query(db);
+    return query.exec("DELETE FROM task_categories");
+}
+
+bool Database::deleteCategory(int id)
+{
+    QSqlQuery query(db);
+    query.prepare("DELETE FROM task_categories WHERE id = ?");
+    query.addBindValue(id);
+    return query.exec();
 }

@@ -18,6 +18,9 @@ class TaskDialog;
 class RecycleBinDialog;
 class TaskFilterModel;
 class TaskTableView;
+class RemindThread;
+class QListWidget;
+class QLineEdit;
 
 class MainWindow : public QMainWindow
 {
@@ -53,6 +56,12 @@ private slots:
     void onCalendarShowInspirations(const QDate &date);
     void onCalendarShowTasks(const QDate &date);
 
+    void onBackupDatabase();
+    void onRestoreDatabase();
+    void onAddCategory();
+    void onDeleteCategory();
+    void onTaskReminded(int taskId, const QString &title);
+
 private:
     QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
@@ -83,6 +92,10 @@ private:
 
     TaskFilterModel *uncompletedProxyModel;
     TaskFilterModel *completedProxyModel;
+
+    RemindThread *remindThread;
+    QListWidget *settingCategoryList;
+    QLineEdit *settingCategoryEdit;
 
     void setupSystemTray();
     void setupUI();

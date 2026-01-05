@@ -1,15 +1,14 @@
-/* 主窗口样式 */
+/*主窗口全局样式 */
 QMainWindow {
     background-color: #1e1e1e;
     color: #ffffff;
 }
 
-/* 中央部件 */
 QWidget {
     background-color: #1e1e1e;
 }
 
-/* 标题标签 */
+/* --- 标题栏 --- */
 #titleLabel {
     color: #657896;
     font-size: 30px;
@@ -19,7 +18,7 @@ QWidget {
     margin-bottom: 10px;
 }
 
-/* Tab控件 */
+/* --- Tab控件 --- */
 #mainTabWidget {
     background-color: #2d2d2d;
     border: 1px solid #3d3d3d;
@@ -58,16 +57,16 @@ QWidget {
     color: #ffffff;
 }
 
-/* 按钮通用样式 */
+/*  按钮样式 */
 QPushButton {
     background-color: #657896;
     color: #ffffff;
     border: 1px solid #4d4d4d;
     border-radius: 4px;
-    padding: 8px 16px 8px 16px;
+    padding: 0px 16px;
+    min-height: 36px;
     font-size: 14px;
     text-align: center;
-    min-height: 20px;
 }
 
 QPushButton:hover {
@@ -86,12 +85,10 @@ QPushButton:disabled {
     border-color: #3d3d3d;
 }
 
-/* 按钮图标样式 */
 QPushButton::menu-indicator {
     image: none;
 }
 
-/* 设置按钮的图标 */
 QPushButton[objectName^="add"],
 QPushButton[objectName^="edit"],
 QPushButton[objectName^="delete"],
@@ -107,13 +104,12 @@ QPushButton[objectName^="calendarView"] {
     background-origin: content;
 }
 
-/* 视图切换按钮 */
 #listViewBtn, #kanbanViewBtn, #calendarViewBtn {
     padding: 8px 16px;
     min-height: 15px;
 }
 
-/* 标签样式 */
+/* 标签与状态栏 */
 #taskListLabel, #inspirationListLabel, #statisticLabel, #settingLabel {
     background-color: #2d2d2d;
     border: 2px dashed #3d3d3d;
@@ -124,7 +120,6 @@ QPushButton[objectName^="calendarView"] {
     text-align: center;
 }
 
-/* 状态栏样式 */
 QStatusBar {
     background-color: #2d2d2d;
     color: #cccccc;
@@ -133,7 +128,6 @@ QStatusBar {
     padding: 2px 8px;
 }
 
-/* 信息标签 */
 #infoLabel {
     color: #657896;
     font-size: 10px;
@@ -142,59 +136,89 @@ QStatusBar {
     border-top: 1px solid #3d3d3d;
 }
 
-/* 工具栏布局样式 */
+/*  布局与输入控件  */
 QHBoxLayout, QVBoxLayout {
     spacing: 8px;
     margin: 0;
     padding: 0;
 }
 
-/* 标签样式 */
 QLabel {
     color: #cccccc;
     font-size: 12px;
 }
 
-/* 输入框样式 */
 QLineEdit, QTextEdit, QPlainTextEdit {
     background-color: #2d2d2d;
     color: #ffffff;
     border: 1px solid #3d3d3d;
     border-radius: 4px;
-    padding: 6px 8px;
+    padding: 0px 8px;
     selection-background-color: #657896;
+    min-height: 36px;
 }
 
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
     border: 2px solid #657896;
 }
 
-/* 组合框样式 */
+/* 组合框  */
 QComboBox {
-    background-color: #2d2d2d;
+    background-color: #333333;
     color: #ffffff;
-    border: 1px solid #3d3d3d;
+    border: 1px solid #555555;
     border-radius: 4px;
-    padding: 6px 8px;
+    padding: 0px 8px;
     min-height: 30px;
 }
 
 QComboBox:hover {
     border-color: #657896;
+    background-color: #3d3d3d;
+}
+
+QComboBox:on {
+    background-color: #3d3d3d;
 }
 
 QComboBox::drop-down {
     border: none;
     width: 20px;
+    background-color: transparent;
 }
 
 QComboBox::down-arrow {
-    image: url(:/icons/dropdown_arrow.png);
     width: 12px;
     height: 12px;
 }
 
-/* 复选框样式 */
+QComboBox#filterCategoryCombo,
+QComboBox#filterPriorityCombo {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border: 1px solid #3d3d3d;
+    border-radius: 4px;
+    padding: 0px 8px;
+    min-height: 30px;
+}
+
+QComboBox#filterCategoryCombo:hover,
+QComboBox#filterPriorityCombo:hover {
+    border: 1px solid #657896;
+    background-color: #3d3d3d;
+}
+
+QComboBox#filterCategoryCombo QAbstractItemView,
+QComboBox#filterPriorityCombo QAbstractItemView {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    selection-background-color: #657896;
+    selection-color: #ffffff;
+    border: 1px solid #3d3d3d;
+    outline: none;
+}
+
+/* 复选框与单选框 */
 QCheckBox {
     color: #cccccc;
     spacing: 8px;
@@ -214,7 +238,6 @@ QCheckBox::indicator:checked {
     image: url(:/icons/checkmark.png);
 }
 
-/* 单选框样式 */
 QRadioButton {
     color: #cccccc;
     spacing: 8px;
@@ -231,4 +254,115 @@ QRadioButton::indicator {
 QRadioButton::indicator:checked {
     background-color: #657896;
     border-color: #657896;
+}
+
+/* 分体式表头设计 */
+
+/* 1. 已完成任务分隔条 */
+#completedSeparatorBtn {
+    background-color: #455266;
+    border: none;
+    border-radius: 0px;
+    min-height: 7px;
+    max-height: 7px;
+    height: 7px;
+    margin: 0px;
+    padding: 0px;
+}
+
+#completedSeparatorBtn:hover {
+    background-color: #4F5E75;
+}
+
+/* 2. 通用表头样式 */
+QHeaderView::section {
+    background-color: #455266;
+    color: white;
+    padding: 1px;
+    border: none;
+    border-right: 1px solid #2d2d2d;
+    border-bottom: 1px solid #2d2d2d;
+    font-size: 13px;
+    font-weight: bold;
+    min-height: 29px;
+}
+
+QHeaderView::section:hover {
+    background-color: #4F5E75;
+}
+
+/* 3. 已完成任务表头 */
+#completedTableView QHeaderView::section {
+    background-color: #455266;
+    padding-top: -2px;
+    padding-bottom: 4px;
+    min-height: 22px;
+    max-height: 22px;
+    border-top: none;
+}
+
+#completedTableView QHeaderView::section:hover {
+    background-color: #4F5E75;
+}
+
+/*灵感视图*/
+QComboBox#filterTagCombo {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    border: 1px solid #3d3d3d;
+    border-radius: 4px;
+    padding: 2px 8px;
+    min-height: 28px;
+}
+
+QComboBox#filterTagCombo:hover {
+    border: 1px solid #657896;
+    background-color: #3d3d3d;
+}
+
+QComboBox#filterTagCombo::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QComboBox#filterTagCombo QAbstractItemView {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    selection-background-color: #657896;
+    border: 1px solid #3d3d3d;
+}
+
+/* --- 系统托盘菜单样式 --- */
+QMenu {
+    background-color: #657896;
+    border: 1px solid #4d4d4d;
+    padding: 4px;
+    border-radius: 6px;
+    color: #ffffff; /* 文字保持白色 */
+}
+
+QMenu::item {
+    background-color: transparent;
+    padding: 6px 24px 6px 10px;
+    border-radius: 4px;
+    margin: 2px 0px;
+}
+
+QMenu::item:selected {
+    background-color: #4a5a6d;
+    color: #ffffff;
+}
+
+QMenu::item:disabled {
+    color: #cccccc;
+}
+
+QMenu::separator {
+    height: 1px;
+    background: #4d4d4d;
+    margin: 4px 10px;
+}
+
+QMenu::icon {
+    padding-left: 10px;
 }

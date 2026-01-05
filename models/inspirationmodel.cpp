@@ -5,16 +5,6 @@
 #include <QDebug>
 #include <QDate>
 
-static QSqlDatabase getDbConnection()
-{
-    QSqlDatabase db = Database::instance().getDatabase();
-    if (!db.isOpen()) {
-        Database::instance().ensureConnected();
-        db = Database::instance().getDatabase();
-    }
-    return db;
-}
-
 InspirationModel::InspirationModel(QObject *parent)
     : QAbstractTableModel(parent)
 {

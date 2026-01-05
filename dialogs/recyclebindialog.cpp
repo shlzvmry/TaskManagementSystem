@@ -99,8 +99,6 @@ void RecycleBinDialog::setTaskModel(TaskModel *model)
 
 void RecycleBinDialog::refreshDeletedTasks()
 {
-    qDebug() << "开始刷新回收站数据...";
-
     if (!taskModel) {
         qDebug() << "错误: taskModel 为空";
         ui->statusLabel->setText("错误: 任务模型未初始化");
@@ -108,7 +106,6 @@ void RecycleBinDialog::refreshDeletedTasks()
     }
 
     deletedTasks = taskModel->getDeletedTasks();
-    qDebug() << "获取到" << deletedTasks.size() << "个已删除任务";
 
     ui->tableWidget->setRowCount(0);
 
@@ -123,9 +120,6 @@ void RecycleBinDialog::refreshDeletedTasks()
 
     int row = 0;
     for (const QVariantMap &task : deletedTasks) {
-        qDebug() << "处理第" << row << "行: ID=" << task["id"].toInt()
-            << ", 标题=" << task["title"].toString();
-
         try {
             QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(task["id"].toInt()));
             idItem->setTextAlignment(Qt::AlignCenter);
@@ -203,7 +197,6 @@ void RecycleBinDialog::refreshDeletedTasks()
     updateButtonStates();
 
     ui->tableWidget->viewport()->update();
-    qDebug() << "回收站刷新完成，显示" << row << "行数据";
 }
 
 void RecycleBinDialog::onRestoreClicked()

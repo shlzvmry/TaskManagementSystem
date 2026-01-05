@@ -59,6 +59,7 @@ SOURCES += \
     dialogs/inspirationrecyclebindialog.cpp \
     dialogs/tagmanagerdialog.cpp \
     dialogs/inspirationtagsearchdialog.cpp\
+    dialogs/firstrundialog.cpp \
 
 HEADERS += \
     dialogs/taskdialog.h \
@@ -67,12 +68,20 @@ HEADERS += \
     dialogs/inspirationrecyclebindialog.h \
     dialogs/tagmanagerdialog.h \
     dialogs/inspirationtagsearchdialog.h\
+    dialogs/firstrundialog.h \
 
 FORMS += \
     dialogs/inspirationdialog.ui \
     dialogs/recyclebindialog.ui \
     dialogs/taskdialog.ui \
     dialogs/tagmanagerdialog.ui \
+
+#线程模块
+SOURCES += \
+    threads/remindthread.cpp
+
+HEADERS += \
+    threads/remindthread.h
 
 #控件模块
 SOURCES += \
@@ -106,6 +115,7 @@ INCLUDEPATH += \
     $$PWD/dialogs \
     $$PWD/views \
     $$PWD/utils\
+    $$PWD/threads \
 
 # Default rules for deployment.
 CODECFORTR = UTF-8

@@ -3,11 +3,13 @@ PriorityWidget QPushButton {
     color: white;
     border: 2px solid transparent;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: normal;
-    padding: 2px 4px;
+    padding: 0px;
     margin: 0px;
     background-color: #4C566A;
+    min-height: 24px;
+    max-height: 26px;
 }
 
 PriorityWidget QPushButton:checked {
@@ -15,22 +17,18 @@ PriorityWidget QPushButton:checked {
     font-weight: bold;
 }
 
-/* --- 优先级 0: 紧急 --- */
 PriorityWidget QPushButton#priorityBtn_0 { background-color: #C96A6A; }
 PriorityWidget QPushButton#priorityBtn_0:hover { background-color: #D47C7C; }
 PriorityWidget QPushButton#priorityBtn_0:checked { background-color: #B05555; }
 
-/* --- 优先级 1: 重要--- */
 PriorityWidget QPushButton#priorityBtn_1 { background-color: #D69E68; }
 PriorityWidget QPushButton#priorityBtn_1:hover { background-color: #E0AB79; }
 PriorityWidget QPushButton#priorityBtn_1:checked { background-color: #BF8855; }
 
-/* --- 优先级 2: 普通 --- */
 PriorityWidget QPushButton#priorityBtn_2 { background-color: #7FA882; }
 PriorityWidget QPushButton#priorityBtn_2:hover { background-color: #91B693; }
 PriorityWidget QPushButton#priorityBtn_2:checked { background-color: #6D9470; }
 
-/* --- 优先级 3: 不急--- */
 PriorityWidget QPushButton#priorityBtn_3 { background-color: #8C949E; }
 PriorityWidget QPushButton#priorityBtn_3:hover { background-color: #9DA5AE; }
 PriorityWidget QPushButton#priorityBtn_3:checked { background-color: #707882; }
@@ -41,10 +39,12 @@ StatusWidget QPushButton {
     color: white;
     border: 2px solid transparent;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: normal;
-    padding: 2px 4px;
+    padding: 0px;
     background-color: #4C566A;
+    min-height: 24px;
+    max-height: 26px;
 }
 
 StatusWidget QPushButton:checked {
@@ -52,22 +52,18 @@ StatusWidget QPushButton:checked {
     font-weight: bold;
 }
 
-/* --- 状态 0: 待办--- */
 StatusWidget QPushButton#statusBtn_0 { background-color: #7696B3; }
 StatusWidget QPushButton#statusBtn_0:hover { background-color: #87A5BF; }
 StatusWidget QPushButton#statusBtn_0:checked { background-color: #62829E; }
 
-/* --- 状态 1: 进行中 --- */
 StatusWidget QPushButton#statusBtn_1 { background-color: #D69E68; }
 StatusWidget QPushButton#statusBtn_1:hover { background-color: #E0AB79; }
 StatusWidget QPushButton#statusBtn_1:checked { background-color: #BF8855; }
 
-/* --- 状态 2: 已完成--- */
 StatusWidget QPushButton#statusBtn_2 { background-color: #7FA882; }
 StatusWidget QPushButton#statusBtn_2:hover { background-color: #91B693; }
 StatusWidget QPushButton#statusBtn_2:checked { background-color: #6D9470; }
 
-/* --- 状态 3: 已延期--- */
 StatusWidget QPushButton#statusBtn_3 { background-color: #C96A6A; }
 StatusWidget QPushButton#statusBtn_3:hover { background-color: #D47C7C; }
 StatusWidget QPushButton#statusBtn_3:checked { background-color: #B05555; }
@@ -81,4 +77,27 @@ TagWidget QPushButton {
     font-size: 11px;
     font-weight: normal;
     min-height: 20px;
+}
+
+QTableView QComboBox {
+    background-color: #2d2d2d;
+    color: white;
+    border: none;
+    padding: 0px 4px;
+
+    min-height: 24px;
+    max-height: 24px;
+}
+
+QTableView QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QTableView QComboBox QAbstractItemView {
+    background-color: #2d2d2d;
+    color: white;
+    selection-background-color: #657896;
+    outline: none;
+    border: 1px solid #3d3d3d;
 }

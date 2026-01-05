@@ -14,7 +14,11 @@
 #include "dialogs/inspirationdialog.h"
 #include "views/statisticview.h"
 #include "models/statisticmodel.h"
-
+#include "threads/remindthread.h"
+#include "dialogs/firstrundialog.h"
+#include <QFileDialog>
+#include <QGroupBox>
+#include <QColorDialog>
 #include <QStackedWidget>
 #include <QComboBox>
 #include <QApplication>
@@ -40,6 +44,7 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QTableWidget>
+#include <QProcess>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -69,6 +74,30 @@ MainWindow::MainWindow(QWidget *parent)
 
     recycleBinDialog = new RecycleBinDialog(this);
     recycleBinDialog->setTaskModel(taskModel);
+    // 首次运行检查
+    if (Database::instance().getSetting("first_run", "true") == "true") {
+        FirstRunDialog firstRunDlg(this);
+        firstRunDlg.exec();
+        // 刷新一下分类下拉框
+        if (filterCategoryCombo) {
+            filterCategoryCombo->clear();
+            filterCategoryCombo->addItem("所有分类", -1);
+            filterCategoryCombo->addItem("灵感记录✨", -2);
+            QList<QVariantMap> cats = Database::instance().getAllCategories();
+            for(const auto &cat : cats) {
+                filterCategoryCombo->addItem(cat["name"].toString(), cat["id"]);
+            }
+        }
+    }
+
+    // 启动后台提醒线程
+    remindThread = new RemindThread(this);
+    connect(remindThread, &RemindThread::taskOverdueUpdated, this, [this](){
+        // 逾期状态更新后刷新界面
+        QMetaObject::invokeMethod(this, "onRefreshTasksClicked", Qt::QueuedConnection);
+    });
+    connect(remindThread, &RemindThread::remindTask, this, &MainWindow::onTaskReminded);
+    remindThread->start();
 
     createWatermark();
     setupSystemTray();
@@ -82,6 +111,11 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    if (remindThread) {
+        remindThread->stop();
+        remindThread->wait();
+        delete remindThread;
+    }
 }
 
 void MainWindow::setupUI()
@@ -452,17 +486,90 @@ void MainWindow::createStatisticTab()
 void MainWindow::createSettingTab()
 {
     QWidget *settingTab = new QWidget();
-    QVBoxLayout *layout = new QVBoxLayout(settingTab);
+    QVBoxLayout *mainLayout = new QVBoxLayout(settingTab);
+    mainLayout->setContentsMargins(20, 20, 20, 20);
+    mainLayout->setSpacing(20);
 
-    QLabel *settingLabel = new QLabel("系统设置将显示在这里", settingTab);
-    settingLabel->setObjectName("settingLabel");
-    settingLabel->setAlignment(Qt::AlignCenter);
-    settingLabel->setMinimumHeight(400);
+    // 1. 数据管理区域
+    QGroupBox *dataGroup = new QGroupBox("💾 数据安全", settingTab);
+    QHBoxLayout *dataLayout = new QHBoxLayout(dataGroup);
 
-    layout->addWidget(settingLabel);
+    QPushButton *backupBtn = new QPushButton("备份数据库", dataGroup);
+    backupBtn->setIcon(QIcon(":/icons/export_icon.png"));
+    connect(backupBtn, &QPushButton::clicked, this, &MainWindow::onBackupDatabase);
+
+    QPushButton *restoreBtn = new QPushButton("恢复数据库", dataGroup);
+    restoreBtn->setIcon(QIcon(":/icons/refresh_icon.png"));
+    connect(restoreBtn, &QPushButton::clicked, this, &MainWindow::onRestoreDatabase);
+
+    dataLayout->addWidget(backupBtn);
+    dataLayout->addWidget(restoreBtn);
+    dataLayout->addStretch();
+
+    // 2. 分类管理区域
+    QGroupBox *catGroup = new QGroupBox("🗂️ 任务分类管理", settingTab);
+    QVBoxLayout *catLayout = new QVBoxLayout(catGroup);
+
+    QHBoxLayout *inputLayout = new QHBoxLayout();
+    settingCategoryEdit = new QLineEdit(catGroup);
+    settingCategoryEdit->setPlaceholderText("输入新分类名称...");
+
+    QPushButton *addCatBtn = new QPushButton("添加分类", catGroup);
+    connect(addCatBtn, &QPushButton::clicked, this, &MainWindow::onAddCategory);
+
+    inputLayout->addWidget(settingCategoryEdit);
+    inputLayout->addWidget(addCatBtn);
+
+    settingCategoryList = new QListWidget(catGroup);
+    settingCategoryList->setAlternatingRowColors(true);
+
+    // 刷新列表
+    auto refreshCatList = [this]() {
+        settingCategoryList->clear();
+        QList<QVariantMap> cats = Database::instance().getAllCategories();
+        for(const auto &c : cats) {
+            QListWidgetItem *item = new QListWidgetItem(c["name"].toString());
+            item->setData(Qt::UserRole, c["id"]);
+            QPixmap pix(16,16);
+            pix.fill(QColor(c["color"].toString()));
+            item->setIcon(QIcon(pix));
+            settingCategoryList->addItem(item);
+        }
+    };
+    refreshCatList();
+
+    // 切换到设置页时自动刷新分类列表
+    connect(tabWidget, &QTabWidget::currentChanged, this, [this, refreshCatList](int index){
+        if(tabWidget->tabText(index) == "系统设置") refreshCatList();
+    });
+
+    QPushButton *delCatBtn = new QPushButton("删除选中分类", catGroup);
+    delCatBtn->setStyleSheet("background-color: #C96A6A; color: white; border: none; padding: 5px; border-radius: 4px;");
+    connect(delCatBtn, &QPushButton::clicked, this, &MainWindow::onDeleteCategory);
+
+    catLayout->addLayout(inputLayout);
+    catLayout->addWidget(settingCategoryList);
+    catLayout->addWidget(delCatBtn);
+
+    // 3. 偏好设置
+    QGroupBox *prefGroup = new QGroupBox("⚙️ 偏好设置", settingTab);
+    QVBoxLayout *prefLayout = new QVBoxLayout(prefGroup);
+    QCheckBox *soundCheck = new QCheckBox("启用提醒音效", prefGroup);
+    soundCheck->setChecked(Database::instance().getSetting("sound_enabled", "true") == "true");
+    connect(soundCheck, &QCheckBox::toggled, [](bool checked){
+        Database::instance().setSetting("sound_enabled", checked ? "true" : "false");
+    });
+
+    prefLayout->addWidget(soundCheck);
+
+    mainLayout->addWidget(dataGroup);
+    mainLayout->addWidget(catGroup);
+    mainLayout->addWidget(prefGroup);
+    mainLayout->addStretch();
 
     tabWidget->addTab(settingTab, "系统设置");
 }
+
 
 void MainWindow::setupConnections()
 {
@@ -826,7 +933,7 @@ void MainWindow::loadStyleSheet()
     for (const QString &path : stylePaths) {
         QFile file(path);
         if (file.open(QFile::ReadOnly | QFile::Text)) {
-            styleSheet += QLatin1String(file.readAll());
+            styleSheet += QString::fromUtf8(file.readAll());
             styleSheet += "\n";
             file.close();
         } else {
@@ -929,4 +1036,86 @@ void MainWindow::onCalendarShowTasks(const QDate &date)
 
     layout->addWidget(table);
     dlg.exec();
+}
+
+void MainWindow::onBackupDatabase()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, "备份数据库",
+                                                    QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/task_backup.db",
+                                                    "Database Files (*.db)");
+    if (fileName.isEmpty()) return;
+
+    if (Database::instance().backupDatabase(fileName)) {
+        QMessageBox::information(this, "成功", "数据库备份成功！");
+    } else {
+        QMessageBox::warning(this, "失败", "备份失败，请检查文件权限。");
+    }
+}
+
+void MainWindow::onRestoreDatabase()
+{
+    QString fileName = QFileDialog::getOpenFileName(this, "选择备份文件",
+                                                    QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation),
+                                                    "Database Files (*.db)");
+    if (fileName.isEmpty()) return;
+
+    if (QMessageBox::warning(this, "警告", "恢复操作将覆盖当前所有数据且不可撤销！\n确定要继续吗？",
+                             QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
+
+        // 停止线程防止占用数据库
+        if(remindThread) remindThread->stop();
+
+        if (Database::instance().restoreDatabase(fileName)) {
+            QMessageBox::information(this, "成功", "数据恢复成功！程序将重启以应用更改。");
+            qApp->quit();
+            QProcess::startDetached(qApp->arguments()[0], qApp->arguments());
+        } else {
+            QMessageBox::warning(this, "失败", "恢复失败，可能是文件损坏或被占用。");
+            // 重启线程
+            if(remindThread) remindThread->start();
+        }
+    }
+}
+
+void MainWindow::onAddCategory()
+{
+    QString name = settingCategoryEdit->text().trimmed();
+    if (name.isEmpty()) return;
+
+    // 随机颜色
+    QStringList colors = {"#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#7696B3"};
+    QString color = colors[rand() % colors.size()];
+
+    if (Database::instance().addCategory(name, color)) {
+        settingCategoryEdit->clear();
+        QMessageBox::information(this, "成功", "分类添加成功");
+    } else {
+        QMessageBox::warning(this, "错误", "分类已存在或添加失败");
+    }
+}
+
+void MainWindow::onDeleteCategory()
+{
+    QListWidgetItem *item = settingCategoryList->currentItem();
+    if (!item) return;
+
+    int id = item->data(Qt::UserRole).toInt();
+    if (QMessageBox::question(this, "确认", "删除分类将导致该分类下的任务变为'未分类'，确定删除吗？") == QMessageBox::Yes) {
+        Database::instance().deleteCategory(id);
+        delete item;
+    }
+}
+
+void MainWindow::onTaskReminded(int taskId, const QString &title)
+{
+    Q_UNUSED(taskId);
+    // 播放系统提示音
+    if (Database::instance().getSetting("sound_enabled", "true") == "true") {
+        QApplication::beep();
+    }
+
+    // 显示托盘消息
+    if (trayIcon) {
+        trayIcon->showMessage("任务提醒", QString("任务即将到期：\n%1").arg(title), QSystemTrayIcon::Information, 5000);
+    }
 }
