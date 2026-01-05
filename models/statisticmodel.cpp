@@ -57,13 +57,21 @@ QMap<QString, int> StatisticModel::getTasksCountByCategory(const Filter &f) cons
 QMap<QString, int> StatisticModel::getTasksCountByPriority(const Filter &f) const
 {
     QMap<QString, int> result;
+    // 显式初始化，确保 0 值也显示
+    result["紧急"] = 0; result["重要"] = 0; result["普通"] = 0; result["不急"] = 0;
+
     QStringList names = {"紧急", "重要", "普通", "不急"};
     QSqlQuery q;
     q.prepare("SELECT priority, COUNT(*) FROM tasks WHERE is_deleted = 0 AND deadline BETWEEN ? AND ? "
               + buildCategoryInClause(f.categoryIds) + " GROUP BY priority");
     q.addBindValue(f.start);
     q.addBindValue(f.end);
-    if (q.exec()) while (q.next()) result[names.value(q.value(0).toInt(), "未知")] = q.value(1).toInt();
+    if (q.exec()) {
+        while (q.next()) {
+            int p = q.value(0).toInt();
+            if (p >= 0 && p < names.size()) result[names[p]] = q.value(1).toInt();
+        }
+    }
     return result;
 }
 
@@ -80,20 +88,72 @@ QMap<QString, int> StatisticModel::getTasksCountByStatus(const Filter &f) const
     return result;
 }
 
-QMap<QDate, int> StatisticModel::getDailyCompletionTrend(const Filter &f) const
+QVector<int> StatisticModel::getHourlyTrend(const Filter &f) const
 {
-    QMap<QDate, int> result;
-    // 预填充日期
-    for (QDate d = f.start.date(); d <= f.end.date(); d = d.addDays(1)) result[d] = 0;
-
+    QVector<int> data(24, 0);
+    int currentHour = QDateTime::currentDateTime().time().hour();
     QSqlQuery q;
-    q.prepare("SELECT date(completed_at), COUNT(*) FROM tasks "
+    q.prepare("SELECT strftime('%H', completed_at) as hour, COUNT(*) FROM tasks "
+              "WHERE is_deleted = 0 AND status = 2 AND date(completed_at) = date(?) "
+              + buildCategoryInClause(f.categoryIds) + " GROUP BY hour");
+    q.addBindValue(f.start);
+    if (q.exec()) {
+        while (q.next()) {
+            int h = q.value(0).toInt();
+            if (h >= 0 && h < 24) data[h] = q.value(1).toInt();
+        }
+    }
+    for(int i = currentHour + 1; i < 24; ++i) data[i] = 0;
+    return data;
+}
+
+QVector<int> StatisticModel::getDailyTrend(const Filter &f) const
+{
+    int days = f.start.date().daysTo(f.end.date()) + 1;
+    if (days <= 0) return QVector<int>();
+    QVector<int> data(days, 0);
+    QDate today = QDate::currentDate();
+    QSqlQuery q;
+    q.prepare("SELECT date(completed_at) as d, COUNT(*) FROM tasks "
               "WHERE is_deleted = 0 AND status = 2 AND completed_at BETWEEN ? AND ? "
-              + buildCategoryInClause(f.categoryIds) + " GROUP BY date(completed_at)");
+              + buildCategoryInClause(f.categoryIds) + " GROUP BY d");
     q.addBindValue(f.start);
     q.addBindValue(f.end);
-    if (q.exec()) while (q.next()) result[QDate::fromString(q.value(0).toString(), "yyyy-MM-dd")] = q.value(1).toInt();
-    return result;
+    if (q.exec()) {
+        while (q.next()) {
+            QDate d = QDate::fromString(q.value(0).toString(), "yyyy-MM-dd");
+            int idx = f.start.date().daysTo(d);
+            if (idx >= 0 && idx < days) data[idx] = q.value(1).toInt();
+        }
+    }
+    for(int i = 0; i < days; ++i) {
+        if (f.start.date().addDays(i) > today) data[i] = 0;
+    }
+    return data;
+}
+
+QVector<int> StatisticModel::getMonthlyTrend(const Filter &f) const
+{
+    // 固定返回12个月的数据
+    QVector<int> data(12, 0);
+    int year = f.start.date().year(); // 假设 Filter 已经是整年范围
+
+    QSqlQuery q;
+    q.prepare("SELECT strftime('%m', completed_at) as m, COUNT(*) FROM tasks "
+              "WHERE is_deleted = 0 AND status = 2 "
+              "AND strftime('%Y', completed_at) = ? "
+              + buildCategoryInClause(f.categoryIds) + " GROUP BY m");
+    q.addBindValue(QString::number(year));
+
+    if (q.exec()) {
+        while (q.next()) {
+            int m = q.value(0).toInt();
+            if (m >= 1 && m <= 12) {
+                data[m - 1] = q.value(1).toInt();
+            }
+        }
+    }
+    return data;
 }
 
 double StatisticModel::getAverageCompletionTime(const Filter &f) const

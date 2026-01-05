@@ -4,6 +4,7 @@
 #include <QString>
 #include <QList>
 #include <QVariantMap>
+#include <QPixmap>
 #include "models/statisticmodel.h"
 
 class TaskModel;
@@ -11,11 +12,11 @@ class TaskModel;
 class Exporter
 {
 public:
-    // 导出任务列表到CSV
-    static bool exportTasksToCSV(const QString &filePath, TaskModel *model);
+    static bool exportTasksToCSV(const QString &filePath, TaskModel *model, const StatisticModel::Filter &f);
 
-    // 导出报表到PDF，增加 Filter 参数以匹配最新的统计模型
-    static bool exportReportToPDF(const QString &filePath, TaskModel *taskModel, StatisticModel *statModel, const StatisticModel::Filter &f);
+    static bool exportReportToPDF(const QString &filePath, TaskModel *taskModel, StatisticModel *statModel,
+                                  const StatisticModel::Filter &f, const QList<QPixmap> &chartPixmaps,
+                                  const QString &aiAnalysisText);
 };
 
 #endif // EXPORTER_H

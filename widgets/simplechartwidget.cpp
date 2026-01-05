@@ -3,12 +3,14 @@
 #include <QPainterPath>
 #include <QtMath>
 #include <QDebug>
+#include <QMouseEvent>
 
 SimpleChartWidget::SimpleChartWidget(ChartType type, QString title, QWidget *parent)
-    : QWidget(parent), m_type(type), m_title(title)
+    : QWidget(parent), m_type(type), m_title(title), m_isHovering(false)
 {
     setMinimumSize(300, 250);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setMouseTracking(true);
 }
 
 void SimpleChartWidget::setCategoryData(const QMap<QString, int> &data)
@@ -17,9 +19,17 @@ void SimpleChartWidget::setCategoryData(const QMap<QString, int> &data)
     update();
 }
 
-void SimpleChartWidget::setTrendData(const QMap<QDate, int> &data)
+void SimpleChartWidget::setTrendData(const QVector<int> &data, const QStringList &labels, const QStringList &tooltips)
 {
-    m_trendData = data;
+    m_trendValues = data;
+    m_trendLabels = labels;
+    m_tooltips = tooltips;
+    update();
+}
+
+void SimpleChartWidget::setSubTitle(const QString &subTitle)
+{
+    m_subTitle = subTitle;
     update();
 }
 
@@ -159,59 +169,123 @@ void SimpleChartWidget::drawBarChart(QPainter &painter, const QRect &rect)
 
 void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
 {
-    if (m_trendData.isEmpty()) return;
-
-    int maxVal = 0;
-    for (int val : m_trendData) if (val > maxVal) maxVal = val;
-    // Y轴留一点余量
-    maxVal = maxVal < 5 ? 5 : maxVal + 1;
-
-    // 绘制坐标轴
-    painter.setPen(QColor("#555555"));
-    painter.drawLine(rect.bottomLeft(), rect.bottomRight()); // X轴
-    painter.drawLine(rect.bottomLeft(), rect.topLeft());     // Y轴
-
-    int count = m_trendData.size();
-    if (count < 2) return;
-
-    double stepX = (double)rect.width() / (count - 1);
-
-    QVector<QPointF> points;
-    int i = 0;
-    for (auto it = m_trendData.begin(); it != m_trendData.end(); ++it) {
-        double x = rect.left() + i * stepX;
-        double y = rect.bottom() - ((double)it.value() / maxVal * rect.height());
-        points.append(QPointF(x, y));
-
-        // 绘制日期标签
+    // 0. 绘制左上角副标题（日期范围）
+    if (!m_subTitle.isEmpty()) {
         painter.setPen(QColor("#888888"));
-        QFont f = painter.font();
-        f.setPointSize(8);
-        f.setBold(false);
-        painter.setFont(f);
-        painter.drawText(x - 20, rect.bottom() + 5, 40, 20, Qt::AlignCenter, it.key().toString("MM-dd"));
-
-        i++;
+        QFont subFont = painter.font();
+        subFont.setPointSize(9);
+        subFont.setBold(false);
+        painter.setFont(subFont);
+        // 在标题下方绘制
+        painter.drawText(rect.left(), rect.top() - 15, m_subTitle);
     }
 
-    // 绘制折线
+    if (m_trendValues.isEmpty()) return;
+
+    m_currentPoints.clear(); // 清空缓存点
+
+    int maxVal = 0;
+    for (int val : m_trendValues) if (val > maxVal) maxVal = val;
+    maxVal = maxVal < 5 ? 5 : maxVal + 1;
+
+    painter.setPen(QColor("#555555"));
+    painter.drawLine(rect.bottomLeft(), rect.bottomRight());
+    painter.drawLine(rect.bottomLeft(), rect.topLeft());
+
+    int count = m_trendValues.size();
+    double stepX = count > 1 ? (double)rect.width() / (count - 1) : 0;
+    bool showXLabels = (count <= 31); // 规则：大于31天不显示横坐标文字
+
+    QVector<QPointF> points;
+    for (int i = 0; i < count; ++i) {
+        double x = rect.left() + i * stepX;
+        double y = rect.bottom() - ((double)m_trendValues[i] / maxVal * rect.height());
+        QPointF pt(x, y);
+        points.append(pt);
+        m_currentPoints.append(pt); // 缓存用于交互
+
+        // 绘制 X 轴标签
+        if (showXLabels && i < m_trendLabels.size()) {
+            painter.setPen(QColor("#888888"));
+            QFont f = painter.font();
+            f.setPointSize(8);
+            painter.setFont(f);
+
+            // 简单防重叠：如果点太多（如31个），每隔一个显示一个，或者只显示首尾
+            // 这里根据需求：<=31都画，但为了不重叠，可以交错显示
+            if (count > 15 && (i % 2 != 0)) {
+                // 跳过奇数索引以防重叠
+            } else {
+                painter.drawText(x - 20, rect.bottom() + 5, 40, 20, Qt::AlignCenter, m_trendLabels.at(i));
+            }
+        }
+    }
+
+    painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(QPen(getColor(6), 2));
-    painter.setBrush(Qt::NoBrush);
-    painter.drawPolyline(points.data(), points.size());
+    if (points.size() > 1) painter.drawPolyline(points.data(), points.size());
 
-    // 绘制点和数值
-    painter.setBrush(QColor("#2d2d2d"));
+    // 绘制点和悬停效果
+    int closestIndex = -1;
+    double minDist = 10000.0;
+
+    // 如果鼠标在区域内，寻找最近的点
+    if (m_isHovering) {
+        for (int i = 0; i < m_currentPoints.size(); ++i) {
+            double dist = std::abs(m_currentPoints[i].x() - m_mousePos.x());
+            if (dist < minDist && dist < stepX / 2 + 5) { // 阈值
+                minDist = dist;
+                closestIndex = i;
+            }
+        }
+    }
+
     for (int j = 0; j < points.size(); ++j) {
-        painter.setPen(QPen(getColor(6), 2));
-        painter.drawEllipse(points[j], 3, 3);
+        painter.setBrush(QColor("#2d2d2d"));
 
-        // 数值
-        auto it = m_trendData.begin();
-        std::advance(it, j);
-        if (it.value() > 0) {
+        // 如果是鼠标悬停的点，画大一点并显示Tooltip
+        if (j == closestIndex) {
+            painter.setPen(QPen(Qt::white, 2));
+            painter.drawEllipse(points[j], 5, 5);
+
+            // 绘制 Tooltip
+            QString tipText = QString("数值: %1").arg(m_trendValues[j]);
+            if (j < m_tooltips.size()) {
+                tipText = QString("%1\n%2").arg(m_tooltips[j]).arg(tipText);
+            } else if (j < m_trendLabels.size()) {
+                tipText = QString("%1\n%2").arg(m_trendLabels[j]).arg(tipText);
+            }
+
+            // 计算 Tooltip 区域
+            QFont tipFont = painter.font();
+            tipFont.setPointSize(9);
+            QFontMetrics fm(tipFont);
+            QRect tipRect = fm.boundingRect(QRect(0,0,0,0), Qt::AlignLeft, tipText);
+            tipRect.adjust(-5, -5, 5, 5);
+            tipRect.moveCenter(points[j].toPoint() + QPoint(0, -35));
+
+            // 边界检查
+            if (tipRect.left() < 0) tipRect.moveLeft(5);
+            if (tipRect.right() > width()) tipRect.moveRight(width() - 5);
+
+            painter.setBrush(QColor(0, 0, 0, 200));
+            painter.setPen(Qt::NoPen);
+            painter.drawRoundedRect(tipRect, 4, 4);
+
             painter.setPen(Qt::white);
-            painter.setBackgroundMode(Qt::TransparentMode);
-            painter.drawText(points[j].x() - 15, points[j].y() - 20, 30, 15, Qt::AlignCenter, QString::number(it.value()));
+            painter.setFont(tipFont);
+            painter.drawText(tipRect, Qt::AlignCenter, tipText);
+
+        } else {
+            // 普通点
+            painter.setPen(QPen(getColor(6), 2));
+            painter.drawEllipse(points[j], 3, 3);
+
+            // 只有点很少时才直接显示数值，否则太乱
+            if (count <= 15 && m_trendValues[j] > 0) {
+                painter.setPen(Qt::white);
+                painter.drawText(points[j].x() - 15, points[j].y() - 20, 30, 15, Qt::AlignCenter, QString::number(m_trendValues[j]));
+            }
         }
     }
 }
@@ -230,4 +304,19 @@ QColor SimpleChartWidget::getColor(int index) const
         "#BF616A"  // 浆果红
     };
     return QColor(palette[index % palette.size()]);
+}
+
+void SimpleChartWidget::mouseMoveEvent(QMouseEvent *event)
+{
+    m_mousePos = event->pos();
+    m_isHovering = true;
+    update(); // 触发重绘以显示悬停效果
+    QWidget::mouseMoveEvent(event);
+}
+
+void SimpleChartWidget::leaveEvent(QEvent *event)
+{
+    m_isHovering = false;
+    update();
+    QWidget::leaveEvent(event);
 }

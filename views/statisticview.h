@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QDateTime>
 #include "models/statisticmodel.h"
+#include <QTextEdit>
 
 class TaskModel;
 class SimpleChartWidget;
@@ -39,6 +40,9 @@ private:
 
     // 概览指标
     QLabel *m_totalLab, *m_compLab, *m_rateLab, *m_overdueLab, *m_avgTimeLab, *m_inspLab;
+
+    // AI 分析框
+    QTextEdit *m_aiAnalysisEdit;
 
     // 图表
     SimpleChartWidget *m_catePie, *m_prioBar, *m_statusPie, *m_trendLine;

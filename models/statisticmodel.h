@@ -26,9 +26,12 @@ public:
     QMap<QString, int> getTasksCountByStatus(const Filter &f) const;
     QMap<QDate, int> getDailyCompletionTrend(const Filter &f) const;
 
-    // 效率统计：平均完成耗时（小时）
+    // 趋势图新函数
+    QVector<int> getHourlyTrend(const Filter &f) const;
+    QVector<int> getDailyTrend(const Filter &f) const;
+    QVector<int> getMonthlyTrend(const Filter &f) const;
+
     double getAverageCompletionTime(const Filter &f) const;
-    // 灵感统计：该时间段内的灵感数量
     int getInspirationCount(const Filter &f) const;
 
 private:

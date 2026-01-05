@@ -179,7 +179,7 @@ void InspirationView::setupUI()
     leftLayout->setSpacing(5);
 
     m_dateFilterCheck = new QCheckBox("筛选:", this);
-    m_dateFilterCheck->setChecked(true);
+    m_dateFilterCheck->setChecked(false);
     m_dateFilterCheck->setStyleSheet("color: #cccccc;");
 
     m_yearSpin = new QSpinBox(this);
@@ -187,6 +187,7 @@ void InspirationView::setupUI()
     m_yearSpin->setValue(QDate::currentDate().year());
     m_yearSpin->setSuffix("年");
     m_yearSpin->setFixedWidth(70);
+    m_yearSpin->setEnabled(false);
     m_yearSpin->setStyleSheet(
         "QSpinBox { background-color: #2d2d2d; color: #ffffff; border: 1px solid #3d3d3d; border-radius: 4px; padding: 2px; }"
         "QSpinBox::up-button, QSpinBox::down-button { width: 16px; }"
@@ -197,6 +198,7 @@ void InspirationView::setupUI()
     m_monthSpin->setValue(QDate::currentDate().month());
     m_monthSpin->setSuffix("月");
     m_monthSpin->setFixedWidth(55);
+    m_monthSpin->setEnabled(false);
     m_monthSpin->setStyleSheet(m_yearSpin->styleSheet());
 
     connect(m_dateFilterCheck, &QCheckBox::toggled, this, [this](bool checked){
@@ -325,7 +327,10 @@ void InspirationView::refresh()
         m_monthSpin->blockSignals(true);
         m_yearSpin->setValue(current.year());
         m_monthSpin->setValue(current.month());
-        m_dateFilterCheck->setChecked(true);
+        m_dateFilterCheck->setChecked(false);
+        m_yearSpin->setEnabled(false);
+        m_monthSpin->setEnabled(false);
+
         m_yearSpin->blockSignals(false);
         m_monthSpin->blockSignals(false);
 

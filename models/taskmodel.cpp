@@ -613,9 +613,14 @@ QList<QVariantMap> TaskModel::getAllTasks(bool includeDeleted) const
     QList<QVariantMap> taskList;
     QSqlDatabase db = getDbConnection();
     if (!db.isOpen()) return taskList;
-    QString queryStr = "SELECT * FROM tasks ";
-    if (!includeDeleted) queryStr += "WHERE is_deleted = 0 ";
-    queryStr += "ORDER BY created_at DESC";
+
+    // 修复：增加 JOIN 语句以获取分类名称 category_name
+    QString queryStr = "SELECT t.*, c.name as category_name FROM tasks t "
+                       "LEFT JOIN task_categories c ON t.category_id = c.id ";
+
+    if (!includeDeleted) queryStr += "WHERE t.is_deleted = 0 ";
+    queryStr += "ORDER BY t.created_at DESC";
+
     QSqlQuery query(db);
     if (query.exec(queryStr)) {
         while (query.next()) {

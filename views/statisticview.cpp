@@ -15,6 +15,11 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QScrollBar>
+#include <QCoreApplication>
+#include <QDir>
+#include <QStandardPaths>
+#include <QDesktopServices>
+#include <QUrl>
 
 StatisticView::StatisticView(QWidget *parent) : QWidget(parent)
 {
@@ -43,7 +48,7 @@ void StatisticView::setupUI()
 
     m_timeRangeCombo = new QComboBox();
     m_timeRangeCombo->setObjectName("filterCategoryCombo");
-    m_timeRangeCombo->addItems({"本周", "本日", "本月", "本年"});
+    m_timeRangeCombo->addItems({"本周", "本日", "本月", "本年", "自定义"}); // 修改：增加自定义选项
     fLayout->addWidget(m_timeRangeCombo);
 
     // 常驻的日期选择器
@@ -55,9 +60,30 @@ void StatisticView::setupUI()
     fLayout->addWidget(new QLabel("结束日期:"));
     m_endDateEdit = new QDateEdit(QDate::currentDate());
     m_endDateEdit->setCalendarPopup(true);
+    m_endDateEdit->setMaximumDate(QDate::currentDate());
     fLayout->addWidget(m_endDateEdit);
 
-    // 关键布局：在此处加弹簧，将上方的“预设/日期”和下方的“分类/按钮”拉开
+    // 日期联动：开始日期改变时，限制结束日期的最小值
+    connect(m_startDateEdit, &QDateEdit::dateChanged, this, [this](QDate date){
+        m_endDateEdit->setMinimumDate(date);
+        if (m_endDateEdit->date() < date) {
+            m_endDateEdit->setDate(date);
+        }
+    });
+    m_endDateEdit->setMinimumDate(m_startDateEdit->date());
+
+    // 修改：手动修改日期时，自动切换到“自定义”模式，并更新图表
+    auto switchToCustom = [this]() {
+        bool oldState = m_timeRangeCombo->blockSignals(true);
+        m_timeRangeCombo->setCurrentIndex(4);
+        m_timeRangeCombo->blockSignals(oldState);
+        onFilterChanged();
+    };
+
+    // 使用 userDateChanged 仅响应用户手动操作
+    connect(m_startDateEdit, &QDateEdit::userDateChanged, this, switchToCustom);
+    connect(m_endDateEdit, &QDateEdit::userDateChanged, this, switchToCustom);
+
     fLayout->addStretch(1);
 
     // 底部区域：分类和按钮
@@ -119,26 +145,54 @@ void StatisticView::setupUI()
     cLayout->addLayout(cardLayout);
 
     // 图表绘制部分
+    // 第一行：分类分布 + AI分析建议
     QHBoxLayout *row1 = new QHBoxLayout();
     m_catePie = new SimpleChartWidget(SimpleChartWidget::PieChart, "分类分布");
-    m_trendLine = new SimpleChartWidget(SimpleChartWidget::LineChart, "完成动态趋势");
-    row1->addWidget(m_catePie, 1);
-    row1->addWidget(m_trendLine, 2);
+
+    // 新增：AI 分析框
+    QFrame *aiFrame = new QFrame();
+    aiFrame->setObjectName("aiAnalysisFrame");
+    aiFrame->setStyleSheet("QFrame#aiAnalysisFrame { background-color: #2d2d2d; border: 1px solid #3d3d3d; border-radius: 10px; }");
+    QVBoxLayout *aiLayout = new QVBoxLayout(aiFrame);
+
+    QLabel *aiTitle = new QLabel("✨ AI 智能分析与建议");
+    aiTitle->setStyleSheet("background: transparent; color: #657896; font-weight: bold; font-size: 11pt; padding: 5px;");
+
+    m_aiAnalysisEdit = new QTextEdit();
+    m_aiAnalysisEdit->setReadOnly(true);
+    m_aiAnalysisEdit->setPlaceholderText("正在分析您的工作习惯...\n(此处预留对接 AI 模型 API，可根据图表数据自动生成周报总结与改进建议)");
+    m_aiAnalysisEdit->setStyleSheet("border: none; background: transparent; color: #cccccc; font-size: 10pt;");
+
+    aiLayout->addWidget(aiTitle);
+    aiLayout->addWidget(m_aiAnalysisEdit);
+
+    row1->addWidget(m_catePie,2);
+    row1->addWidget(aiFrame, 3); // AI 框与饼图 2:3
     cLayout->addLayout(row1);
 
+    // 第二行：完成动态趋势
     QHBoxLayout *row2 = new QHBoxLayout();
+    m_trendLine = new SimpleChartWidget(SimpleChartWidget::LineChart, "完成动态趋势");
+    // 设置最小高度，保证独占一行时美观
+    m_trendLine->setMinimumHeight(300);
+    row2->addWidget(m_trendLine);
+    cLayout->addLayout(row2);
+
+    // 第三行：优先级 + 状态
+    QHBoxLayout *row3 = new QHBoxLayout();
     m_prioBar = new SimpleChartWidget(SimpleChartWidget::BarChart, "优先级分析");
     m_statusPie = new SimpleChartWidget(SimpleChartWidget::PieChart, "执行状态占比");
-    row2->addWidget(m_prioBar, 1);
-    row2->addWidget(m_statusPie, 1);
-    cLayout->addLayout(row2);
+    row3->addWidget(m_prioBar, 1);
+    row3->addWidget(m_statusPie, 1);
+    cLayout->addLayout(row3);
 
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *btnXls = new QPushButton(" 导出数据报告(CSV)");
     btnXls->setObjectName("applyFilterBtn");
     btnXls->setIcon(QIcon(":/icons/export_icon.png"));
-
-    QPushButton *btnPdf = new QPushButton(" 生成统计周报(PDF)");
+    btnLayout->addSpacing(
+        0);
+    QPushButton *btnPdf = new QPushButton(" 生成统计报表(PDF)");
     btnPdf->setObjectName("applyFilterBtn");
     btnPdf->setIcon(QIcon(":/icons/export_icon.png"));
 
@@ -155,7 +209,7 @@ void StatisticView::setupUI()
     // 信号绑定
     connect(m_timeRangeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &StatisticView::onTimeRangeTypeChanged);
 
-    // 关键：手动修改日期也触发更新（使用 userDateChanged 区分手动还是代码修改）
+    // 关键：手动修改日期也触发更新
     connect(m_startDateEdit, &QDateEdit::userDateChanged, this, &StatisticView::onFilterChanged);
     connect(m_endDateEdit, &QDateEdit::userDateChanged, this, &StatisticView::onFilterChanged);
 
@@ -190,6 +244,8 @@ StatisticModel::Filter StatisticView::getCurrentFilter() const
 
 void StatisticView::onTimeRangeTypeChanged(int index)
 {
+    if (index == 4) return; // 自定义模式：不自动修改日期，直接返回
+
     QDate now = QDate::currentDate();
     QDate start, end;
 
@@ -230,18 +286,83 @@ void StatisticView::updateContent()
 {
     StatisticModel::Filter f = getCurrentFilter();
 
-    QVariantMap ov = m_statModel->getOverviewStats(f);
-    m_totalLab->setText(ov["total"].toString());
-    m_compLab->setText(ov["completed"].toString());
-    m_rateLab->setText(QString::number(ov["rate"].toDouble(), 'f', 1) + "%");
-    m_overdueLab->setText(ov["overdue"].toString());
-    m_avgTimeLab->setText(QString::number(m_statModel->getAverageCompletionTime(f), 'f', 1));
-    m_inspLab->setText(QString::number(m_statModel->getInspirationCount(f)));
+    // 更新概览卡片... (保持原有代码不变)
+    if (m_statModel) {
+        QVariantMap stats = m_statModel->getOverviewStats(f);
+        m_totalLab->setText(stats["total"].toString());
+        m_compLab->setText(stats["completed"].toString());
+        m_rateLab->setText(QString::number(stats["rate"].toDouble(), 'f', 1) + "%");
+        m_overdueLab->setText(stats["overdue"].toString());
+        double avgTime = m_statModel->getAverageCompletionTime(f);
+        m_avgTimeLab->setText(QString::number(avgTime, 'f', 1));
+        int inspCount = m_statModel->getInspirationCount(f);
+        m_inspLab->setText(QString::number(inspCount));
+    }
+
+    // --- 趋势图逻辑修改 ---
+    QVector<int> trendData;
+    QStringList labels;
+    QStringList tooltips;
+    QString subTitle;
+
+    int typeIndex = m_timeRangeCombo->currentIndex(); // 0:本周, 1:本日, 2:本月, 3:本年
+
+    // 判断是否是自定义时间（如果日期被手动修改过，可能不对应下拉框）
+    // 这里简单处理：如果下拉框选的是本年，就走本年逻辑；否则走天逻辑
+
+    if (typeIndex == 3) {
+        // 规则 3.3: 选择“本年”时横坐标只需要12个点，对应每个月的m1、m2...
+        trendData = m_statModel->getMonthlyTrend(f);
+        for(int i=1; i<=12; ++i) {
+            labels << QString("m%1").arg(i);
+            tooltips << QString("%1年%2月").arg(f.start.date().year()).arg(i);
+        }
+        subTitle = QString("%1年").arg(f.start.date().year());
+    }
+    else {
+        // 按天统计 (本日、本周、本月、自定义)
+        QDate startDate = f.start.date();
+        QDate endDate = f.end.date();
+        QDate today = QDate::currentDate();
+
+        // 规则 3.1: 把具体的日期显示在左上角
+        subTitle = QString("%1 ~ %2").arg(startDate.toString("yyyy.MM.dd")).arg(endDate.toString("yyyy.MM.dd"));
+
+        // 规则 3.2: 当选择“本月”的时间范围时，未经过的天不画
+        // 如果是本月模式 (typeIndex == 2)，结束日期截断到今天
+        if (typeIndex == 2 && endDate > today) {
+            endDate = today;
+            // 重新设置Filter的end用于查询数据，但不改变界面上的日期选择器
+            StatisticModel::Filter f_temp = f;
+            f_temp.end.setDate(endDate);
+            f_temp.end.setTime(QTime(23, 59, 59));
+            trendData = m_statModel->getDailyTrend(f_temp);
+        } else {
+            trendData = m_statModel->getDailyTrend(f);
+        }
+
+        int days = startDate.daysTo(endDate) + 1;
+
+        // 确保数据点数量匹配
+        if (trendData.size() > days) trendData.resize(days);
+
+        for(int i=0; i<days; ++i) {
+            QDate d = startDate.addDays(i);
+            // 规则 3.2: 横坐标显示 d1, d2...
+            // 规则 3.3: 只有天数 <= 31 才显示横坐标文字 (ChartWidget内部控制)，这里只管传值
+            labels << QString("d%1").arg(i + 1);
+            // 鼠标悬停时显示具体日期
+            tooltips << d.toString("yyyy-MM-dd");
+        }
+    }
+
+    m_trendLine->setSubTitle(subTitle);
+    m_trendLine->setTrendData(trendData, labels, tooltips);
+    // ----------------------
 
     m_catePie->setCategoryData(m_statModel->getTasksCountByCategory(f));
     m_prioBar->setCategoryData(m_statModel->getTasksCountByPriority(f));
     m_statusPie->setCategoryData(m_statModel->getTasksCountByStatus(f));
-    m_trendLine->setTrendData(m_statModel->getDailyCompletionTrend(f));
 }
 
 void StatisticView::setModels(TaskModel *taskModel, StatisticModel *statModel)
@@ -255,25 +376,54 @@ void StatisticView::refresh() { onFilterChanged(); }
 
 void StatisticView::onExportExcel()
 {
-    QString fileName = QFileDialog::getSaveFileName(this, "导出CSV", "", "CSV Files (*.csv)");
+    // 修改：使用系统“文档”目录，兼容性最好
+    QString docPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QString exportPath = docPath + "/TaskManagement_Exports"; // 专用子文件夹
+    QDir dir(exportPath);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    QString defaultFileName = exportPath + "/任务数据_" + QDateTime::currentDateTime().toString("yyyyMMdd_HHmm") + ".csv";
+
+    QString fileName = QFileDialog::getSaveFileName(this, "导出任务数据(CSV)", defaultFileName, "CSV Files (*.csv)");
     if (fileName.isEmpty()) return;
 
-    // 目前 exportTasksToCSV 内部还没适配 Filter，我们可以直接导出全部，
-    // 或者后续再根据需要给 exportTasksToCSV 也增加 Filter 参数。
-    if (Exporter::exportTasksToCSV(fileName, m_taskModel)) {
-        QMessageBox::information(this, "成功", "任务列表已成功导出！");
+    if (Exporter::exportTasksToCSV(fileName, m_taskModel, getCurrentFilter())) {
+        QMessageBox::information(this, "成功", "导出成功！\n文件位置：" + fileName);
+        // 可选：导出后自动打开文件夹，方便用户找到
+        // QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(fileName).absolutePath()));
     } else {
         QMessageBox::warning(this, "错误", "导出失败，请检查文件权限。");
     }
 }
+
 void StatisticView::onExportPDF()
 {
-    QString fileName = QFileDialog::getSaveFileName(this, "导出PDF报表", "", "PDF Files (*.pdf)");
+    // 修改：使用系统“文档”目录
+    QString docPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QString exportPath = docPath + "/TaskManagement_Exports";
+    QDir dir(exportPath);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    QString defaultFileName = exportPath + "/统计报表_" + QDateTime::currentDateTime().toString("yyyyMMdd_HHmm") + ".pdf";
+
+    QString fileName = QFileDialog::getSaveFileName(this, "导出统计报表(PDF)", defaultFileName, "PDF Files (*.pdf)");
     if (fileName.isEmpty()) return;
 
-    // 传入当前 UI 上的筛选条件
-    if (Exporter::exportReportToPDF(fileName, m_taskModel, m_statModel, getCurrentFilter())) {
-        QMessageBox::information(this, "成功", "PDF报表已生成！");
+    QList<QPixmap> pixmaps;
+    if (m_catePie) pixmaps << m_catePie->grab();
+    if (m_trendLine) pixmaps << m_trendLine->grab();
+    if (m_prioBar) pixmaps << m_prioBar->grab();
+    if (m_statusPie) pixmaps << m_statusPie->grab();
+
+    // 获取 AI 分析框的纯文本
+    QString aiText = m_aiAnalysisEdit ? m_aiAnalysisEdit->toPlainText() : "";
+
+    if (Exporter::exportReportToPDF(fileName, m_taskModel, m_statModel, getCurrentFilter(), pixmaps, aiText)) {
+        QMessageBox::information(this, "成功", "报表生成成功！\n文件位置：" + fileName);
     } else {
         QMessageBox::warning(this, "错误", "生成PDF失败。");
     }
