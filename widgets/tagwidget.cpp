@@ -35,7 +35,7 @@ protected:
         if (!bgColor.isValid()) bgColor = QColor("#657896");
 
         if (m_isHovered) {
-            bgColor = QColor("#FF6B6B");
+            bgColor = bgColor.lighter(110);
         }
 
         painter.setPen(Qt::NoPen);

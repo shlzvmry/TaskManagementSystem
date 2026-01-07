@@ -54,27 +54,21 @@ HEADERS += \
 #对话框模块
 SOURCES += \
     dialogs/taskdialog.cpp\
-    dialogs/recyclebindialog.cpp\
-    dialogs/inspirationdialog.cpp \
+    dialogs/inspirationdialog.cpp\
     dialogs/inspirationrecyclebindialog.cpp \
-    dialogs/tagmanagerdialog.cpp \
     dialogs/inspirationtagsearchdialog.cpp\
     dialogs/firstrundialog.cpp \
+    dialogs/tagmanagerdialog.cpp\
+    dialogs/recyclebindialog.cpp\
 
 HEADERS += \
-    dialogs/taskdialog.h \
-    dialogs/recyclebindialog.h\
-    dialogs/inspirationdialog.h \
+    dialogs/taskdialog.h\
+    dialogs/inspirationdialog.h\
     dialogs/inspirationrecyclebindialog.h \
-    dialogs/tagmanagerdialog.h \
     dialogs/inspirationtagsearchdialog.h\
     dialogs/firstrundialog.h \
-
-FORMS += \
-    dialogs/inspirationdialog.ui \
-    dialogs/recyclebindialog.ui \
-    dialogs/taskdialog.ui \
-    dialogs/tagmanagerdialog.ui \
+    dialogs/tagmanagerdialog.h\
+    dialogs/recyclebindialog.h\
 
 #线程模块
 SOURCES += \

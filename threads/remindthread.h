@@ -13,8 +13,8 @@ public:
     void stop();
 
 signals:
-    void taskOverdueUpdated(); // 逾期状态已更新
-    void remindTask(int taskId, QString title); // 触发提醒
+    void taskOverdueUpdated();
+    void remindTask(int taskId, QString title);
 
 protected:
     void run() override;

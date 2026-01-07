@@ -15,7 +15,6 @@ bool Exporter::exportTasksToCSV(const QString &filePath, TaskModel *model, const
 
     QTextStream out(&file);
     out << QString::fromUtf8("\xEF\xBB\xBF");
-    // 更新表头：插入创建时间和完成时间
     out << "ID,标题,分类,优先级,状态,创建时间,完成时间,截止时间,描述\n";
 
     QList<QVariantMap> allTasks = model->getAllTasks(false);
@@ -28,7 +27,6 @@ bool Exporter::exportTasksToCSV(const QString &filePath, TaskModel *model, const
         row << task["id"].toString();
         row << "\"" + task["title"].toString().replace("\"", "\"\"") + "\"";
 
-        // 分类名称（现在已有值）
         QString catName = task["category_name"].toString();
         row << (catName.isEmpty() ? "未分类" : catName);
 
@@ -38,10 +36,8 @@ bool Exporter::exportTasksToCSV(const QString &filePath, TaskModel *model, const
         int s = task["status"].toInt();
         row << (s==0?"待办": (s==1?"进行中": (s==2?"已完成":"已延期")));
 
-        // 创建日期
         row << task["created_at"].toDateTime().toString("yyyy-MM-dd HH:mm");
 
-        // 完成日期
         QDateTime compAt = task["completed_at"].toDateTime();
         row << (compAt.isValid() ? compAt.toString("yyyy-MM-dd HH:mm") : "-");
 
@@ -61,7 +57,6 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
     QPrinter printer(QPrinter::HighResolution);
     printer.setOutputFormat(QPrinter::PdfFormat);
     printer.setOutputFileName(filePath);
-    // 稍微减小页边距，为内容腾出更多垂直空间
     printer.setPageMargins(QMarginsF(12, 12, 12, 12), QPageLayout::Millimeter);
 
     QVariantMap stats = statModel->getOverviewStats(f);
@@ -77,12 +72,10 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
     const int IMG_FULL_WIDTH = 490;
     const int IMG_HALF_WIDTH = 230;
 
-    // 修改：大幅压缩 CSS 中的 margin 和 padding
     QString html = "<html><head><style>"
                    "body { font-family: 'Microsoft YaHei', sans-serif; }"
                    "h1 { color: #2c3e50; text-align: center; margin-bottom: 5px; font-size: 16pt; }"
                    "p.subtitle { text-align: center; color: #7f8c8d; font-size: 9pt; margin-top: 0; margin-bottom: 10px; }"
-                   // h2 margin-top 从 20px 减为 10px
                    "h2 { color: #34495e; border-left: 5px solid #657896; padding-left: 8px; margin-top: 10px; margin-bottom: 5px; font-size: 12pt; }"
                    "table { width: 100%; border-collapse: collapse; }"
                    "th, td { padding: 3px; text-align: center; }"
@@ -93,7 +86,6 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
     html += QString("<p class='subtitle'>统计周期: %1 至 %2</p>")
                 .arg(f.start.toString("yyyy-MM-dd")).arg(f.end.toString("yyyy-MM-dd"));
 
-    // 1. 核心数据概览
     html += "<h2>1. 核心数据概览</h2>";
     html += "<div class='stat-box'>";
     html += "<table>";
@@ -109,20 +101,12 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
                                                                    "</tr>";
     html += "</table></div>";
 
-    // 2. 可视化分析
     if (chartPixmaps.size() >= 4) {
         html += "<h2>2. 可视化分析</h2>";
-
-        // 第一行：[分类分布] + [AI建议]
-        // 修改：margin-bottom 从 15px 减为 5px，紧凑布局
         html += "<table border='0' cellspacing='0' cellpadding='0' style='margin-bottom: 5px;'><tr>";
-
-        // 左侧
         html += "<td width='50%' valign='top' align='center'>";
         html += QString("<img src='%1' width='%2'>").arg(pixmapToBase64(chartPixmaps[0])).arg(IMG_HALF_WIDTH);
         html += "</td>";
-
-        // 右侧
         html += "<td width='50%' valign='top' style='padding-left: 8px;'>";
         html += "<div style='background-color: #f0f4f8; border: 1px solid #dce4ec; border-radius: 6px; padding: 6px; text-align: left;'>";
         html += "<div style='color: #657896; font-weight: bold; font-size: 9pt; border-bottom: 1px solid #dce4ec; padding-bottom: 2px; margin-bottom: 2px;'>✨ AI 智能分析建议</div>";
@@ -135,14 +119,10 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
         html += "</div>";
         html += "</td>";
         html += "</tr></table>";
-
-        // 第二行：[完成动态趋势]
-        // 修改：margin-bottom 从 15px 减为 5px
         html += "<div align='center' style='margin-bottom: 5px; border: 1px solid #eee; padding: 2px; border-radius: 4px;'>";
         html += QString("<img src='%1' width='%2'>").arg(pixmapToBase64(chartPixmaps[1])).arg(IMG_FULL_WIDTH);
         html += "</div>";
 
-        // 第三行：[优先级分析] + [执行状态占比]
         html += "<table border='0' cellspacing='0' cellpadding='0'><tr>";
         html += "<td width='50%' align='center'>";
         html += QString("<img src='%1' width='%2'>").arg(pixmapToBase64(chartPixmaps[2])).arg(IMG_HALF_WIDTH);
@@ -153,8 +133,6 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
         html += "</tr></table>";
     }
 
-    // 3. 任务清单详情
-    // 关键：保持 page-break-before: always，强制表格从第二页开始
     html += "<h2 style='page-break-before: always; margin-top: 20px;'>3. 任务清单详情</h2>";
 
     html += "<table border='1' cellspacing='0' cellpadding='2' "

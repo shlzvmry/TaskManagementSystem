@@ -31,7 +31,6 @@ private:
     QStringList m_trendLabels;
     QStringList m_tooltips;
 
-    // 用于鼠标悬停交互
     QVector<QPointF> m_currentPoints;
     QPoint m_mousePos;
     bool m_isHovering;

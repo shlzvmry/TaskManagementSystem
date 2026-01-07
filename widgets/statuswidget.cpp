@@ -18,14 +18,12 @@ void StatusWidget::setupUI()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(5);
 
-    // 创建四个状态按钮
     QStringList statusTexts = {"待办", "进行中", "已完成", "已延期"};
 
     for (int i = 0; i < 4; ++i) {
         QPushButton *button = new QPushButton(statusTexts[i], this);
         button->setCheckable(true);
 
-        // 设置固定大小
         button->setFixedSize(80, 32);
         button->setObjectName(QString("statusBtn_%1").arg(i));
 
@@ -34,7 +32,6 @@ void StatusWidget::setupUI()
         layout->addWidget(button);
     }
 
-    // 默认选择"待办"状态
     m_buttons[0]->setChecked(true);
 
     connect(m_buttonGroup, &QButtonGroup::idClicked,
@@ -92,10 +89,10 @@ QString StatusWidget::getStatusText(int status)
 QColor StatusWidget::getStatusColor(int status)
 {
     switch (status) {
-    case 0: return QColor("#2196F3"); // 蓝色
-    case 1: return QColor("#FF9800"); // 橙色
-    case 2: return QColor("#4CAF50"); // 绿色
-    case 3: return QColor("#F44336"); // 红色
-    default: return QColor("#657896"); // 主题色
+    case 0: return QColor("#2196F3");
+    case 1: return QColor("#FF9800");
+    case 2: return QColor("#4CAF50");
+    case 3: return QColor("#F44336");
+    default: return QColor("#657896");
     }
 }

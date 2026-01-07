@@ -59,7 +59,7 @@ void FirstRunDialog::setupUI()
     layout->addStretch();
     layout->addWidget(okBtn);
 
-    onTypeChanged(); // 加载初始状态
+    onTypeChanged();
 }
 
 void FirstRunDialog::onTypeChanged()
@@ -94,7 +94,6 @@ void FirstRunDialog::onConfirm()
     Database::instance().clearCategories();
 
     for(int i=0; i<m_categoryList->count(); ++i) {
-        // 简单处理颜色生成
         QString name = m_categoryList->item(i)->text();
         QString color = "#657896";
         if (m_studentBtn->isChecked()) {

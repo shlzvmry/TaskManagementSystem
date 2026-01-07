@@ -2,12 +2,12 @@
 #define TAGMANAGERDIALOG_H
 
 #include <QDialog>
-#include <QListWidget>
 #include <QVariantMap>
 
-namespace Ui {
-class TagManagerDialog;
-}
+class QListWidget;
+class QTableWidget;
+class QLineEdit;
+class QListWidgetItem;
 
 class TagManagerDialog : public QDialog
 {
@@ -25,11 +25,12 @@ private slots:
     void refreshTags();
 
 private:
-    Ui::TagManagerDialog *ui;
     QList<QVariantMap> allTags;
+    QListWidget *m_tagListWidget;
+    QTableWidget *m_taskTableWidget;
+    QLineEdit *m_tagNameInput;
 
     void setupUI();
-    void setupConnections();
 };
 
 #endif // TAGMANAGERDIALOG_H

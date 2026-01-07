@@ -376,14 +376,11 @@ bool Database::backupDatabase(const QString &destPath)
     if (QFile::exists(destPath)) {
         QFile::remove(destPath);
     }
-    // 使用 SQLite 的 VACUUM INTO 命令进行在线热备份 (需要 SQLite >= 3.27)
-    // 如果 Qt 自带的 SQLite 版本较低，回退到文件复制（需确保无写入）
     QSqlQuery query(db);
     if (query.exec(QString("VACUUM INTO '%1'").arg(destPath))) {
         return true;
     }
 
-    // 备选方案：直接复制文件（简单场景下可用）
     return QFile::copy(dbPath, destPath);
 }
 
@@ -396,7 +393,7 @@ bool Database::restoreDatabase(const QString &srcPath)
     }
 
     if (QFile::copy(srcPath, dbPath)) {
-        return initDatabase(); // 重新打开
+        return initDatabase();
     }
     return false;
 }
@@ -424,7 +421,6 @@ QString Database::getSetting(const QString &key, const QString &defaultValue)
 int Database::updateOverdueTasks()
 {
     if (!db.isOpen()) return 0;
-    // 将状态不是"已完成"(2) 且 截止时间小于当前时间 的任务状态设为"已延期"(3)
     QSqlQuery query(db);
     query.prepare("UPDATE tasks SET status = 3, updated_at = CURRENT_TIMESTAMP "
                   "WHERE status != 2 AND status != 3 AND deadline < CURRENT_TIMESTAMP AND is_deleted = 0");

@@ -26,29 +26,24 @@ private slots:
     void onTimeRangeTypeChanged(int index);
     void onExportExcel();
     void onExportPDF();
-    void requestDelayedRefresh(); // 防抖刷新（延迟刷新）
+    void requestDelayedRefresh();
 
 private:
     StatisticModel *m_statModel;
     TaskModel *m_taskModel;
 
-    // 筛选控件
     QComboBox *m_timeRangeCombo;
     QWidget *m_customDateWidget;
     QDateEdit *m_startDateEdit;
     QDateEdit *m_endDateEdit;
     QListWidget *m_categoryList;
 
-    // 概览指标
     QLabel *m_totalLab, *m_compLab, *m_rateLab, *m_overdueLab, *m_avgTimeLab, *m_inspLab;
 
-    // 图表
     SimpleChartWidget *m_catePie, *m_prioBar, *m_statusPie, *m_trendLine;
 
-    // AI 分析框
     QTextEdit *m_aiAnalysisEdit;
 
-    // 防抖定时器
     class QTimer *m_refreshTimer;
 
     void setupUI();

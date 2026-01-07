@@ -1,6 +1,7 @@
 #include "inspirationtagsearchdialog.h"
 #include "models/inspirationmodel.h"
 #include "widgets/tagwidget.h"
+#include "database/database.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -169,6 +170,11 @@ void InspirationTagSearchDialog::refreshTagGrid()
 
     QString filter = m_searchEdit->text().trimmed();
 
+    QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+    bool isLight = (bgMode == "light");
+
+    QString textColor = isLight ? "#606266" : "#cccccc";
+
     if (filter.isEmpty()) {
         m_allBtn = new QPushButton("All/清空", m_containerWidget);
         m_allBtn->setObjectName("tagSearchAllBtn");
@@ -193,11 +199,12 @@ void InspirationTagSearchDialog::refreshTagGrid()
         btn->setCursor(Qt::PointingHandCursor);
 
         QString color = TagWidget::generateColor(tag);
+
         QString dynamicStyle = QString(
-                                   "QPushButton { color: #ccc; border: 1px solid %1; }"
+                                   "QPushButton { color: %2; border: 1px solid %1; background-color: transparent; }"
                                    "QPushButton:checked { background-color: %1; color: white; border: 1px solid %1; }"
                                    "QPushButton:hover { border: 2px solid %1; }"
-                                   ).arg(color);
+                                   ).arg(color).arg(textColor);
         btn->setStyleSheet(dynamicStyle);
 
         if (m_selectedTags.contains(tag)) {

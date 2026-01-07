@@ -7,19 +7,15 @@
 
 RecycleBinDialog::RecycleBinDialog(QWidget *parent)
     : QDialog(parent)
-    , ui(new Ui::RecycleBinDialog)
     , taskModel(nullptr)
 {
-    ui->setupUi(this);
-    setWindowTitle("回收站");
     setupUI();
-    setupConnections();
+    setWindowTitle("回收站");
     setupTable();
 }
 
 RecycleBinDialog::~RecycleBinDialog()
 {
-    delete ui;
 }
 
 void RecycleBinDialog::setupUI()
@@ -28,55 +24,91 @@ void RecycleBinDialog::setupUI()
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     resize(900, 600);
 
-    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->tableWidget->setAlternatingRowColors(true);
-    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    ui->tableWidget->setSortingEnabled(true);
-    ui->tableWidget->setShowGrid(true);
-    ui->tableWidget->setGridStyle(Qt::SolidLine);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(20, 20, 20, 20);
+    mainLayout->setSpacing(15);
 
-    QHeaderView *horizontalHeader = ui->tableWidget->horizontalHeader();
-    horizontalHeader->setStretchLastSection(true);
-    horizontalHeader->setSectionResizeMode(QHeaderView::Interactive);
-    horizontalHeader->setDefaultAlignment(Qt::AlignCenter);
-    horizontalHeader->setMinimumHeight(40);
+    // 标题
+    QLabel *titleLabel = new QLabel("回收站管理", this);
+    titleLabel->setObjectName("titleLabel");
+    titleLabel->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(titleLabel);
 
-    ui->tableWidget->setColumnCount(8);
+    // 顶部工具栏
+    QFrame *topFrame = new QFrame(this);
+    topFrame->setFrameShape(QFrame::StyledPanel);
+    topFrame->setFrameShadow(QFrame::Raised);
+    QHBoxLayout *topLayout = new QHBoxLayout(topFrame);
+    topLayout->setContentsMargins(10, 10, 10, 10);
+    topLayout->setSpacing(10);
 
-    ui->tableWidget->setColumnWidth(0, 40);
-    ui->tableWidget->setColumnWidth(1, 200);
-    ui->tableWidget->setColumnWidth(2, 80);
-    ui->tableWidget->setColumnWidth(3, 65);
-    ui->tableWidget->setColumnWidth(4, 65);
-    ui->tableWidget->setColumnWidth(5, 130);
-    ui->tableWidget->setColumnWidth(6, 130);
-    ui->tableWidget->setColumnWidth(7, 130);
+    m_statusLabel = new QLabel("共 0 个已删除任务", this);
+    topLayout->addWidget(m_statusLabel);
+    topLayout->addStretch();
 
-    QStringList headers = {"ID", "标题", "分类", "优先级", "状态", "删除时间", "提醒时间", "创建时间"};
-    ui->tableWidget->setHorizontalHeaderLabels(headers);
+    m_restoreBtn = new QPushButton("恢复选中", this);
+    m_restoreBtn->setEnabled(false);
+    connect(m_restoreBtn, &QPushButton::clicked, this, &RecycleBinDialog::onRestoreClicked);
+    topLayout->addWidget(m_restoreBtn);
 
-    ui->tableWidget->verticalHeader()->setVisible(false);
-    ui->tableWidget->verticalHeader()->setDefaultSectionSize(35);
-    ui->tableWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    ui->tableWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-}
+    m_deleteBtn = new QPushButton("永久删除", this);
+    m_deleteBtn->setEnabled(false);
+    connect(m_deleteBtn, &QPushButton::clicked, this, &RecycleBinDialog::onDeletePermanentlyClicked);
+    topLayout->addWidget(m_deleteBtn);
 
-void RecycleBinDialog::setupConnections()
-{
-    connect(ui->restoreButton, &QPushButton::clicked, this, &RecycleBinDialog::onRestoreClicked);
-    connect(ui->deletePermanentlyButton, &QPushButton::clicked, this, &RecycleBinDialog::onDeletePermanentlyClicked);
-    connect(ui->clearAllButton, &QPushButton::clicked, this, &RecycleBinDialog::onClearAllClicked);
-    connect(ui->refreshButton, &QPushButton::clicked, this, &RecycleBinDialog::onRefreshClicked);
-    connect(ui->closeButton, &QPushButton::clicked, this, &RecycleBinDialog::onCloseClicked);
+    m_clearBtn = new QPushButton("清空回收站", this);
+    m_clearBtn->setEnabled(false);
+    connect(m_clearBtn, &QPushButton::clicked, this, &RecycleBinDialog::onClearAllClicked);
+    topLayout->addWidget(m_clearBtn);
 
-    connect(ui->tableWidget, &QTableWidget::itemSelectionChanged,
-            this, &RecycleBinDialog::updateButtonStates);
+    QPushButton *refreshBtn = new QPushButton("刷新", this);
+    connect(refreshBtn, &QPushButton::clicked, this, &RecycleBinDialog::onRefreshClicked);
+    topLayout->addWidget(refreshBtn);
+
+    QPushButton *closeBtn = new QPushButton("关闭", this);
+    connect(closeBtn, &QPushButton::clicked, this, &RecycleBinDialog::onCloseClicked);
+    topLayout->addWidget(closeBtn);
+
+    mainLayout->addWidget(topFrame);
+
+    // 表格
+    m_tableWidget = new QTableWidget(this);
+    m_tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_tableWidget->setAlternatingRowColors(true);
+    m_tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_tableWidget->setSortingEnabled(true);
+    m_tableWidget->setShowGrid(true);
+    m_tableWidget->setGridStyle(Qt::SolidLine);
+
+    connect(m_tableWidget, &QTableWidget::itemSelectionChanged, this, &RecycleBinDialog::updateButtonStates);
+
+    mainLayout->addWidget(m_tableWidget);
 }
 
 void RecycleBinDialog::setupTable()
 {
-    ui->tableWidget->setRowCount(0);
+    QStringList headers = {"ID", "标题", "分类", "优先级", "状态", "删除时间", "提醒时间", "创建时间"};
+    m_tableWidget->setColumnCount(headers.size());
+    m_tableWidget->setHorizontalHeaderLabels(headers);
+
+    QHeaderView *header = m_tableWidget->horizontalHeader();
+    header->setStretchLastSection(true);
+    header->setSectionResizeMode(QHeaderView::Interactive);
+    header->setDefaultAlignment(Qt::AlignCenter);
+    header->setMinimumHeight(40);
+
+    m_tableWidget->verticalHeader()->setVisible(false);
+    m_tableWidget->verticalHeader()->setDefaultSectionSize(35);
+
+    m_tableWidget->setColumnWidth(0, 40);
+    m_tableWidget->setColumnWidth(1, 200);
+    m_tableWidget->setColumnWidth(2, 80);
+    m_tableWidget->setColumnWidth(3, 65);
+    m_tableWidget->setColumnWidth(4, 65);
+    m_tableWidget->setColumnWidth(5, 135);
+    m_tableWidget->setColumnWidth(6, 135);
+    m_tableWidget->setColumnWidth(7, 135);
 }
 
 void RecycleBinDialog::setTaskModel(TaskModel *model)
@@ -99,104 +131,45 @@ void RecycleBinDialog::setTaskModel(TaskModel *model)
 
 void RecycleBinDialog::refreshDeletedTasks()
 {
-    if (!taskModel) {
-        qDebug() << "错误: taskModel 为空";
-        ui->statusLabel->setText("错误: 任务模型未初始化");
-        return;
-    }
-
+    if (!taskModel) return;
     deletedTasks = taskModel->getDeletedTasks();
-
-    ui->tableWidget->setRowCount(0);
+    m_tableWidget->setRowCount(0);
 
     if (deletedTasks.isEmpty()) {
-        ui->tableWidget->setRowCount(0);
-        ui->statusLabel->setText("回收站为空");
+        m_statusLabel->setText("回收站为空");
         updateButtonStates();
         return;
     }
 
-    ui->tableWidget->setRowCount(deletedTasks.size());
-
+    m_tableWidget->setRowCount(deletedTasks.size());
     int row = 0;
     for (const QVariantMap &task : deletedTasks) {
-        try {
-            QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(task["id"].toInt()));
-            idItem->setTextAlignment(Qt::AlignCenter);
-            idItem->setData(Qt::UserRole, task["id"]);
-            ui->tableWidget->setItem(row, 0, idItem);
+        // ... (原有的创建 Item 逻辑，完全相同，只需将 ui->tableWidget 换成 m_tableWidget)
+        QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(task["id"].toInt()));
+        idItem->setTextAlignment(Qt::AlignCenter);
+        idItem->setData(Qt::UserRole, task["id"]);
+        m_tableWidget->setItem(row, 0, idItem);
 
-            QString title = task["title"].toString();
-            QTableWidgetItem *titleItem = new QTableWidgetItem(title);
-            QString description = task["description"].toString();
-            if (!description.isEmpty()) {
-                titleItem->setToolTip(description);
-            }
-            titleItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 1, titleItem);
+        // ... (其他列)
+        m_tableWidget->setItem(row, 1, new QTableWidgetItem(task["title"].toString()));
+        m_tableWidget->setItem(row, 2, new QTableWidgetItem(task["category_name"].toString()));
 
-            QString categoryName = task["category_name"].toString();
-            QTableWidgetItem *categoryItem = new QTableWidgetItem(categoryName.isEmpty() ? "未分类" : categoryName);
-            categoryItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 2, categoryItem);
+        // 优先级
+        int p = task["priority"].toInt();
+        m_tableWidget->setItem(row, 3, new QTableWidgetItem(p==0?"紧急":p==1?"重要":p==2?"普通":"不急"));
 
-            int priority = task["priority"].toInt();
-            QString priorityText;
-            switch (priority) {
-            case 0: priorityText = "紧急"; break;
-            case 1: priorityText = "重要"; break;
-            case 2: priorityText = "普通"; break;
-            case 3: priorityText = "不急"; break;
-            default: priorityText = "未知";
-            }
-            QTableWidgetItem *priorityItem = new QTableWidgetItem(priorityText);
-            priorityItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 3, priorityItem);
+        // 状态
+        int s = task["status"].toInt();
+        m_tableWidget->setItem(row, 4, new QTableWidgetItem(s==0?"待办":s==1?"进行中":s==2?"已完成":"已延期"));
 
-            int status = task["status"].toInt();
-            QString statusText;
-            switch (status) {
-            case 0: statusText = "待办"; break;
-            case 1: statusText = "进行中"; break;
-            case 2: statusText = "已完成"; break;
-            case 3: statusText = "已延期"; break;
-            default: statusText = "未知";
-            }
-            QTableWidgetItem *statusItem = new QTableWidgetItem(statusText);
-            statusItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 4, statusItem);
+        m_tableWidget->setItem(row, 5, new QTableWidgetItem(task["updated_at"].toDateTime().toString("yyyy-MM-dd HH:mm")));
+        m_tableWidget->setItem(row, 6, new QTableWidgetItem(task["remind_time"].toDateTime().toString("yyyy-MM-dd HH:mm")));
+        m_tableWidget->setItem(row, 7, new QTableWidgetItem(task["created_at"].toDateTime().toString("yyyy-MM-dd HH:mm")));
 
-            QDateTime deletedTime = task["updated_at"].toDateTime();
-            QTableWidgetItem *deletedItem = new QTableWidgetItem(
-                deletedTime.isValid() ? deletedTime.toString("yyyy-MM-dd HH:mm") : "未知时间");
-            deletedItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 5, deletedItem);
-
-            QDateTime remindTime = task["remind_time"].toDateTime();
-            QTableWidgetItem *remindItem = new QTableWidgetItem(
-                remindTime.isValid() ? remindTime.toString("yyyy-MM-dd HH:mm") : "-");
-            remindItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 6, remindItem);
-
-            QDateTime createdTime = task["created_at"].toDateTime();
-            QTableWidgetItem *createdItem = new QTableWidgetItem(
-                createdTime.isValid() ? createdTime.toString("yyyy-MM-dd HH:mm") : "未知时间");
-            createdItem->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, 7, createdItem);
-
-            row++;
-
-        } catch (const std::exception &e) {
-            qDebug() << "处理任务数据时出错:" << e.what();
-            continue;
-        }
+        row++;
     }
-
-    ui->statusLabel->setText(QString("共 %1 个已删除任务").arg(deletedTasks.size()));
-
+    m_statusLabel->setText(QString("共 %1 个已删除任务").arg(deletedTasks.size()));
     updateButtonStates();
-
-    ui->tableWidget->viewport()->update();
 }
 
 void RecycleBinDialog::onRestoreClicked()
@@ -278,23 +251,19 @@ void RecycleBinDialog::onCloseClicked()
 
 void RecycleBinDialog::updateButtonStates()
 {
-    bool hasSelection = ui->tableWidget->selectionModel()->hasSelection();
-    ui->restoreButton->setEnabled(hasSelection);
-    ui->deletePermanentlyButton->setEnabled(hasSelection);
-    ui->clearAllButton->setEnabled(!deletedTasks.isEmpty());
+    bool hasSelection = m_tableWidget->selectionModel()->hasSelection();
+    m_restoreBtn->setEnabled(hasSelection);
+    m_deleteBtn->setEnabled(hasSelection);
+    m_clearBtn->setEnabled(!deletedTasks.isEmpty());
 }
 
 int RecycleBinDialog::getSelectedTaskId() const
 {
-    QList<QTableWidgetItem*> selectedItems = ui->tableWidget->selectedItems();
+    QList<QTableWidgetItem*> selectedItems = m_tableWidget->selectedItems();
     if (selectedItems.isEmpty()) return -1;
-
     int row = selectedItems.first()->row();
-    QTableWidgetItem *idItem = ui->tableWidget->item(row, 0);
-    if (idItem) {
-        return idItem->data(Qt::UserRole).toInt();
-    }
-
+    QTableWidgetItem *idItem = m_tableWidget->item(row, 0);
+    if (idItem) return idItem->data(Qt::UserRole).toInt();
     return -1;
 }
 

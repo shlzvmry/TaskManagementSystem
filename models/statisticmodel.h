@@ -19,14 +19,11 @@ public:
         QList<int> categoryIds;
     };
 
-    // 核心统计方法
     QVariantMap getOverviewStats(const Filter &f) const;
     QMap<QString, int> getTasksCountByCategory(const Filter &f) const;
     QMap<QString, int> getTasksCountByPriority(const Filter &f) const;
     QMap<QString, int> getTasksCountByStatus(const Filter &f) const;
     QMap<QDate, int> getDailyCompletionTrend(const Filter &f) const;
-
-    // 趋势图新函数
     QVector<int> getHourlyTrend(const Filter &f) const;
     QVector<int> getDailyTrend(const Filter &f) const;
     QVector<int> getMonthlyTrend(const Filter &f) const;

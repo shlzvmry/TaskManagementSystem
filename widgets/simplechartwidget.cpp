@@ -1,4 +1,5 @@
 #include "simplechartwidget.h"
+#include "database/database.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QtMath>
@@ -39,18 +40,22 @@ void SimpleChartWidget::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    // 1. 背景绘制：使用圆角矩形，去除黑色长条干扰
+    QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+    bool isLight = (bgMode == "light");
+
+    QColor bgColor = isLight ? QColor("#ffffff") : QColor("#262626");
+    QColor borderColor = isLight ? QColor("#dcdfe6") : QColor("#3d3d3d");
+    QColor textColor = isLight ? QColor("#303133") : QColor("#ffffff");
+
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor("#2d2d2d"));
+    painter.setBrush(bgColor);
     painter.drawRoundedRect(rect(), 10, 10);
 
-    // 2. 边框
-    painter.setPen(QPen(QColor("#3d3d3d"), 1));
+    painter.setPen(QPen(borderColor, 1));
     painter.setBrush(Qt::NoBrush);
     painter.drawRoundedRect(rect().adjusted(0, 0, -1, -1), 10, 10);
 
-    // 3. 标题
-    painter.setPen(Qt::white);
+    painter.setPen(textColor);
     QFont font = painter.font();
     font.setBold(true);
     font.setPointSize(11);
@@ -58,7 +63,6 @@ void SimpleChartWidget::paintEvent(QPaintEvent *event)
     QRect titleRect(0, 10, width(), 30);
     painter.drawText(titleRect, Qt::AlignCenter, m_title);
 
-    // 4. 绘图区域：增加底部边距（从 -20 改为 -45），为标签留出更多空间
     QRect chartRect = rect().adjusted(30, 50, -30, -45);
 
     if (m_type == PieChart) {
@@ -79,14 +83,12 @@ void SimpleChartWidget::drawPieChart(QPainter &painter, const QRect &rect)
     if (total == 0) return;
 
     int size = qMin(rect.width(), rect.height());
-    // 留出右侧图例空间
     int pieSize = size * 0.8;
     QRect pieRect(rect.left(), rect.top() + (rect.height() - pieSize)/2, pieSize, pieSize);
 
     int startAngle = 0;
     int colorIndex = 0;
 
-    // 绘制饼图
     for (auto it = m_categoryData.begin(); it != m_categoryData.end(); ++it) {
         if (it.value() == 0) continue;
 
@@ -99,7 +101,6 @@ void SimpleChartWidget::drawPieChart(QPainter &painter, const QRect &rect)
         colorIndex++;
     }
 
-    // 绘制图例
     int legendX = pieRect.right() + 20;
     int legendY = rect.top() + 20;
     colorIndex = 0;
@@ -108,13 +109,18 @@ void SimpleChartWidget::drawPieChart(QPainter &painter, const QRect &rect)
     legendFont.setBold(false);
     painter.setFont(legendFont);
 
+    // 获取当前模式以调整文字颜色
+    QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+    QColor legendTextColor = (bgMode == "light") ? QColor("#606266") : QColor("#cccccc");
+
     for (auto it = m_categoryData.begin(); it != m_categoryData.end(); ++it) {
         if (it.value() == 0) continue;
 
         painter.setBrush(getColor(colorIndex));
+        painter.setPen(Qt::NoPen);
         painter.drawRect(legendX, legendY, 12, 12);
 
-        painter.setPen(QColor("#cccccc"));
+        painter.setPen(legendTextColor);
         QString text = QString("%1 (%2)").arg(it.key()).arg(it.value());
         painter.drawText(legendX + 20, legendY + 11, text);
 
@@ -143,6 +149,10 @@ void SimpleChartWidget::drawBarChart(QPainter &painter, const QRect &rect)
     labelFont.setBold(false);
     painter.setFont(labelFont);
 
+    // 获取当前模式以调整文字颜色
+    QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+    QColor labelColor = (bgMode == "light") ? QColor("#606266") : QColor("#cccccc");
+
     for (auto it = m_categoryData.begin(); it != m_categoryData.end(); ++it) {
         int barHeight = (int)((double)it.value() / maxVal * (rect.height() - 20));
 
@@ -152,13 +162,16 @@ void SimpleChartWidget::drawBarChart(QPainter &painter, const QRect &rect)
         painter.setPen(Qt::NoPen);
         painter.drawRect(barRect);
 
-        // 数值：
-        painter.setPen(Qt::white);
-        painter.setBackgroundMode(Qt::TransparentMode); // 确保文字背景透明
-        painter.drawText(barRect.adjusted(0, -20, 0, 0), Qt::AlignCenter | Qt::AlignBottom, QString::number(it.value()));
+        painter.setPen(labelColor); // 柱状图上方数字颜色跟随标签颜色，或者固定白色
+        if (barHeight > 20) {
+            painter.setPen(Qt::white); // 如果柱子够高，数字画在柱子里，用白色
+            painter.drawText(barRect.adjusted(0, 0, 0, 0), Qt::AlignCenter, QString::number(it.value()));
+        } else {
+            painter.setPen(labelColor); // 柱子太矮，画在上面
+            painter.drawText(barRect.adjusted(0, -20, 0, 0), Qt::AlignCenter | Qt::AlignBottom, QString::number(it.value()));
+        }
 
-        // 标签：下移位置
-        painter.setPen(QColor("#cccccc"));
+        painter.setPen(labelColor);
         QRect labelRect(x - 5, rect.bottom() + 10, barWidth + 10, 20);
         painter.drawText(labelRect, Qt::AlignCenter, it.key());
 
@@ -169,32 +182,36 @@ void SimpleChartWidget::drawBarChart(QPainter &painter, const QRect &rect)
 
 void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
 {
-    // 0. 绘制左上角副标题（日期范围）
+    // 获取当前文本颜色（从 paintEvent 传下来的 painter 状态）
+    QColor axisColor = painter.pen().color();
+    // 稍微变淡一点作为坐标轴颜色
+    axisColor.setAlpha(100);
+
     if (!m_subTitle.isEmpty()) {
-        painter.setPen(QColor("#888888"));
+        painter.setPen(axisColor); // 使用自适应颜色
         QFont subFont = painter.font();
         subFont.setPointSize(9);
         subFont.setBold(false);
         painter.setFont(subFont);
-        // 在标题下方绘制
         painter.drawText(rect.left(), rect.top() - 15, m_subTitle);
     }
 
     if (m_trendValues.isEmpty()) return;
 
-    m_currentPoints.clear(); // 清空缓存点
+    m_currentPoints.clear();
 
     int maxVal = 0;
     for (int val : m_trendValues) if (val > maxVal) maxVal = val;
     maxVal = maxVal < 5 ? 5 : maxVal + 1;
 
-    painter.setPen(QColor("#555555"));
+    // 绘制坐标轴
+    painter.setPen(axisColor); // 使用自适应颜色
     painter.drawLine(rect.bottomLeft(), rect.bottomRight());
     painter.drawLine(rect.bottomLeft(), rect.topLeft());
 
     int count = m_trendValues.size();
     double stepX = count > 1 ? (double)rect.width() / (count - 1) : 0;
-    bool showXLabels = (count <= 31); // 规则：大于31天不显示横坐标文字
+    bool showXLabels = (count <= 31);
 
     QVector<QPointF> points;
     for (int i = 0; i < count; ++i) {
@@ -202,38 +219,35 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
         double y = rect.bottom() - ((double)m_trendValues[i] / maxVal * rect.height());
         QPointF pt(x, y);
         points.append(pt);
-        m_currentPoints.append(pt); // 缓存用于交互
+        m_currentPoints.append(pt);
 
-        // 绘制 X 轴标签
         if (showXLabels && i < m_trendLabels.size()) {
-            painter.setPen(QColor("#888888"));
+            painter.setPen(axisColor); // 使用自适应颜色
             QFont f = painter.font();
             f.setPointSize(8);
             painter.setFont(f);
 
-            // 简单防重叠：如果点太多（如31个），每隔一个显示一个，或者只显示首尾
-            // 这里根据需求：<=31都画，但为了不重叠，可以交错显示
             if (count > 15 && (i % 2 != 0)) {
-                // 跳过奇数索引以防重叠
             } else {
                 painter.drawText(x - 20, rect.bottom() + 5, 40, 20, Qt::AlignCenter, m_trendLabels.at(i));
             }
         }
     }
 
+    // 绘制折线
     painter.setRenderHint(QPainter::Antialiasing);
+    // 获取主题色作为折线颜色 (第6个颜色是灰色，这里我们固定用主题色或者某个显眼颜色)
     painter.setPen(QPen(getColor(6), 2));
     if (points.size() > 1) painter.drawPolyline(points.data(), points.size());
 
-    // 绘制点和悬停效果
+    // 鼠标悬停处理
     int closestIndex = -1;
     double minDist = 10000.0;
 
-    // 如果鼠标在区域内，寻找最近的点
     if (m_isHovering) {
         for (int i = 0; i < m_currentPoints.size(); ++i) {
             double dist = std::abs(m_currentPoints[i].x() - m_mousePos.x());
-            if (dist < minDist && dist < stepX / 2 + 5) { // 阈值
+            if (dist < minDist && dist < stepX / 2 + 5) {
                 minDist = dist;
                 closestIndex = i;
             }
@@ -241,14 +255,14 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
     }
 
     for (int j = 0; j < points.size(); ++j) {
-        painter.setBrush(QColor("#2d2d2d"));
+        // 点的填充色：跟随背景色
+        QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+        painter.setBrush(bgMode == "light" ? Qt::white : QColor("#2d2d2d"));
 
-        // 如果是鼠标悬停的点，画大一点并显示Tooltip
         if (j == closestIndex) {
-            painter.setPen(QPen(Qt::white, 2));
+            painter.setPen(QPen(axisColor, 2)); // 高亮圈颜色
             painter.drawEllipse(points[j], 5, 5);
 
-            // 绘制 Tooltip
             QString tipText = QString("数值: %1").arg(m_trendValues[j]);
             if (j < m_tooltips.size()) {
                 tipText = QString("%1\n%2").arg(m_tooltips[j]).arg(tipText);
@@ -256,7 +270,6 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
                 tipText = QString("%1\n%2").arg(m_trendLabels[j]).arg(tipText);
             }
 
-            // 计算 Tooltip 区域
             QFont tipFont = painter.font();
             tipFont.setPointSize(9);
             QFontMetrics fm(tipFont);
@@ -264,10 +277,10 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
             tipRect.adjust(-5, -5, 5, 5);
             tipRect.moveCenter(points[j].toPoint() + QPoint(0, -35));
 
-            // 边界检查
             if (tipRect.left() < 0) tipRect.moveLeft(5);
             if (tipRect.right() > width()) tipRect.moveRight(width() - 5);
 
+            // Tooltip 背景：半透明黑
             painter.setBrush(QColor(0, 0, 0, 200));
             painter.setPen(Qt::NoPen);
             painter.drawRoundedRect(tipRect, 4, 4);
@@ -277,13 +290,12 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
             painter.drawText(tipRect, Qt::AlignCenter, tipText);
 
         } else {
-            // 普通点
             painter.setPen(QPen(getColor(6), 2));
             painter.drawEllipse(points[j], 3, 3);
 
-            // 只有点很少时才直接显示数值，否则太乱
+            // 数值显示
             if (count <= 15 && m_trendValues[j] > 0) {
-                painter.setPen(Qt::white);
+                painter.setPen(axisColor); // 使用自适应颜色
                 painter.drawText(points[j].x() - 15, points[j].y() - 20, 30, 15, Qt::AlignCenter, QString::number(m_trendValues[j]));
             }
         }
@@ -310,7 +322,7 @@ void SimpleChartWidget::mouseMoveEvent(QMouseEvent *event)
 {
     m_mousePos = event->pos();
     m_isHovering = true;
-    update(); // 触发重绘以显示悬停效果
+    update();
     QWidget::mouseMoveEvent(event);
 }
 

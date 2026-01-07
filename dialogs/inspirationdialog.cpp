@@ -63,8 +63,9 @@ void InspirationDialog::setupUI()
     connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
     connect(saveBtn, &QPushButton::clicked, this, &InspirationDialog::onSave);
 
-    btnLayout->addWidget(cancelBtn);
     btnLayout->addWidget(saveBtn);
+    btnLayout->addWidget(cancelBtn);
+
     layout->addLayout(btnLayout);
 }
 

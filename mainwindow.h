@@ -100,13 +100,14 @@ private:
     QListWidget *settingCategoryList;
     QLineEdit *settingCategoryEdit;
     QComboBox *defaultViewCombo;
-    QComboBox *themeColorCombo;      // 主题色选择
-    QComboBox *startDayCombo;        // 日历起始日
-    QComboBox *defaultRemindCombo;   // 默认提醒时间
-    QCheckBox *autoPurgeCheck;       // 自动清理回收站开关
+    QComboBox *themeColorCombo;
+    QComboBox *bgModeCombo;
+    QComboBox *startDayCombo;
+    QComboBox *defaultRemindCombo;
+    QCheckBox *autoPurgeCheck;
 
-    QWidget *categoryContainer;      // 分类管理的折叠容器
-    QPushButton *categoryToggleBtn;  // 分类管理的折叠按钮
+    QWidget *categoryContainer;
+    QPushButton *categoryToggleBtn;
 
     void setupSystemTray();
     void setupUI();
@@ -119,7 +120,7 @@ private:
     void createStatisticTab();
     void createSettingTab();
     void loadUserPreferences();
-    void updateThemeColor(const QString &color);
+    void updateThemeColor();
 
     void updateStatusBar(const QString &message);
     int getSelectedTaskId() const;

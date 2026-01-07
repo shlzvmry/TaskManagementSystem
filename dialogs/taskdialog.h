@@ -5,13 +5,15 @@
 #include <QDateTime>
 #include <QVariantMap>
 
-namespace Ui {
-class TaskDialog;
-}
-
 class PriorityWidget;
 class StatusWidget;
 class TagWidget;
+class QLineEdit;
+class QTextEdit;
+class QComboBox;
+class QDateTimeEdit;
+class QLabel;
+class QScrollArea;
 
 class TaskDialog : public QDialog
 {
@@ -42,25 +44,38 @@ private slots:
     void loadExistingTags();
 
 private:
-    Ui::TaskDialog *ui;
+    // [修改] 移除 Ui::TaskDialog *ui;
     bool m_isEditMode;
     int m_taskId;
 
+    // UI 控件指针
+    QLineEdit *m_titleEdit;
+    QComboBox *m_categoryCombo;
     PriorityWidget *m_priorityWidget;
     StatusWidget *m_statusWidget;
+
+    QDateTimeEdit *m_startEdit;
+    QDateTimeEdit *m_deadlineEdit;
+    QDateTimeEdit *m_remindEdit;
+
     TagWidget *m_tagWidget;
     QWidget *m_existingTagsContainer;
-    class QLabel *m_labelCreatedTime;
-    class QLabel *m_labelCompletedTime;
+    QLineEdit *m_newTagEdit;
+
+    QTextEdit *m_descEdit;
+
+    QLabel *m_labelCreatedTime;
+    QLabel *m_labelCompletedTime;
+
     int m_originalStatus;
     QDateTime m_originalCompletedTime;
     QDateTime m_originalCreatedTime;
+
     void setupUI();
     void setupConnections();
     void initDateTimeEdits();
     void populateData(const QVariantMap &taskData);
     bool validateInput();
-    QList<QVariantMap> getSelectedTags() const;
     void addExistingTagButton(const QString &name, const QString &color);
 };
 

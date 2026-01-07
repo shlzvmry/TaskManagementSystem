@@ -1,6 +1,7 @@
 #include "kanbanview.h"
 #include "models/taskmodel.h"
 #include "models/taskfiltermodel.h"
+#include "database/database.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QLabel>
@@ -30,24 +31,40 @@ void KanbanDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option
     QString title = index.data(TaskModel::TitleRole).toString();
     QString category = index.data(TaskModel::CategoryNameRole).toString();
     QColor priorityColor = index.data(TaskModel::PriorityColorRole).value<QColor>();
-
     int status = index.data(TaskModel::StatusRole).toInt();
     QDateTime deadline = index.data(TaskModel::DeadlineRole).toDateTime();
     QDateTime completedAt = index.data(TaskModel::CompletedAtRole).toDateTime();
 
+    QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+    bool isLight = (bgMode == "light");
+
+    QColor cardBgColor, textColor, subTextColor, tagBgColor, borderColor;
+
+    if (isLight) {
+        cardBgColor = QColor("#ffffff");
+        textColor = QColor("#303133");
+        subTextColor = QColor("#909399");
+        tagBgColor = QColor("#f5f7fa");
+        borderColor = QColor("#dcdfe6");
+    } else {
+        cardBgColor = QColor("#262626");
+        textColor = QColor("#ffffff");
+        subTextColor = QColor("#cccccc");
+        tagBgColor = QColor("#333333");
+        borderColor = QColor("#3d3d3d");
+    }
+
     QRect rect = option.rect.adjusted(4, 3, -4, -3);
 
-    QColor cardBgColor = QColor("#3d3d3d");
-    QColor textColor = QColor("#e0e0e0");
-    QColor subTextColor = QColor("#aaaaaa");
-    QColor tagBgColor = QColor("#4d4d4d");
-
     if (option.state & QStyle::State_Selected) {
-        painter->setBrush(QColor("#4a5a6d"));
-        painter->setPen(QColor("#657896"));
+        QString themeColorStr = Database::instance().getSetting("theme_color", "#657896");
+        QColor themeColor(themeColorStr);
+        themeColor.setAlpha(isLight ? 40 : 60);
+        painter->setBrush(themeColor);
+        painter->setPen(QColor(themeColorStr));
     } else {
         painter->setBrush(cardBgColor);
-        painter->setPen(Qt::NoPen);
+        painter->setPen(borderColor);
     }
 
     painter->drawRoundedRect(rect, 4, 4);
@@ -100,6 +117,8 @@ void KanbanDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option
             timeStr = deadline.toString("MM-dd");
             if (index.data(TaskModel::IsOverdueRole).toBool()) {
                 painter->setPen(QColor("#FF6B6B"));
+            } else {
+                painter->setPen(subTextColor);
             }
         }
     }
@@ -132,7 +151,6 @@ KanbanColumn::KanbanColumn(int value, QWidget *parent)
     setDefaultDropAction(Qt::MoveAction);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setSpacing(2);
-    setStyleSheet("QListView { background-color: transparent; border: none; }");
 
     setItemDelegate(new KanbanDelegate(this));
 
@@ -277,7 +295,7 @@ KanbanColumn* KanbanView::createColumn(const QString &title, int value, const QS
 
     QLabel *header = new QLabel(title, columnWidget);
     header->setAlignment(Qt::AlignCenter);
-    header->setStyleSheet("font-weight: bold; font-size: 14px; padding: 8px; color: #888;");
+    header->setStyleSheet("font-weight: bold; font-size: 14px; padding: 8px;");
     layout->addWidget(header);
 
     KanbanColumn *list = new KanbanColumn(value, columnWidget);

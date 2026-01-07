@@ -19,6 +19,7 @@
 #include <QFileDialog>
 #include <QGroupBox>
 #include <QColorDialog>
+#include <QColor>
 #include <QStackedWidget>
 #include <QComboBox>
 #include <QApplication>
@@ -65,13 +66,17 @@ MainWindow::MainWindow(QWidget *parent)
     loadStyleSheet();
 
     QScreen *screen = QApplication::primaryScreen();
-    QRect screenGeometry = screen->geometry();
-    int width = screenGeometry.width() * 3 / 4;
-    int height = screenGeometry.height() * 3 / 4;
-    int x = (screenGeometry.width() - width) / 2;
-    int y = (screenGeometry.height() - height) / 2;
+    if (screen) {
+        QRect screenGeometry = screen->availableGeometry();
+        int width = screenGeometry.width() * 3 / 4;
+        int height = screenGeometry.height() * 3 / 4;
+        int x = (screenGeometry.width() - width) / 2;
+        int y = (screenGeometry.height() - height) / 2;
+        setGeometry(x, y, width, height);
+    } else {
+        resize(1024, 768);
+    }
 
-    setGeometry(x, y, width, height);
     setWindowTitle("个人工作与任务管理系统");
 
     taskModel = new TaskModel(this);
@@ -80,11 +85,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     recycleBinDialog = new RecycleBinDialog(this);
     recycleBinDialog->setTaskModel(taskModel);
-    // 首次运行检查
+
     if (Database::instance().getSetting("first_run", "true") == "true") {
         FirstRunDialog firstRunDlg(this);
         firstRunDlg.exec();
-        // 刷新一下分类下拉框
         if (filterCategoryCombo) {
             filterCategoryCombo->clear();
             filterCategoryCombo->addItem("所有分类", -1);
@@ -96,10 +100,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
-    // 启动后台提醒线程
     remindThread = new RemindThread(this);
     connect(remindThread, &RemindThread::taskOverdueUpdated, this, [this](){
-        // 逾期状态更新后刷新界面
         QMetaObject::invokeMethod(this, "onRefreshTasksClicked", Qt::QueuedConnection);
     });
     connect(remindThread, &RemindThread::remindTask, this, &MainWindow::onTaskReminded);
@@ -128,6 +130,7 @@ MainWindow::~MainWindow()
 void MainWindow::setupUI()
 {
     QWidget *centralWidget = new QWidget(this);
+    centralWidget->setObjectName("centralWidget");
     setCentralWidget(centralWidget);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
@@ -422,12 +425,10 @@ void MainWindow::setupSystemTray()
 
     trayMenu = new QMenu(this);
 
-    // 1. 添加任务
     QAction *addTaskAction = new QAction(QIcon(":/icons/add_icon.png"), "添加任务", this);
     connect(addTaskAction, &QAction::triggered, this, &MainWindow::onAddTaskClicked);
     trayMenu->addAction(addTaskAction);
 
-    // 2. 记录灵感
     QAction *addInspirationAction = new QAction(QIcon(":/icons/edit_icon.png"), "记录灵感", this);
     connect(addInspirationAction, &QAction::triggered, this, &MainWindow::onQuickRecordClicked);
     trayMenu->addAction(addInspirationAction);
@@ -482,7 +483,6 @@ void MainWindow::createStatisticTab()
 
     tabWidget->addTab(statisticTab, "统计分析");
 
-    // 切换到统计标签页时刷新数据
     connect(tabWidget, &QTabWidget::currentChanged, this, [this](int index) {
         if (tabWidget->tabText(index) == "统计分析") {
             statisticView->refresh();
@@ -506,20 +506,16 @@ void MainWindow::createSettingTab()
     contentLayout->setSpacing(20);
     contentLayout->setContentsMargins(40, 40, 40, 40);
 
-    // ==========================================
-    // 上半部分：双塔布局 (Twin Towers)
-    // ==========================================
     QHBoxLayout *towersLayout = new QHBoxLayout();
     towersLayout->setSpacing(10);
 
-    // --- 左塔：界面与习惯 ---
+
     QGroupBox *leftGroup = new QGroupBox("界面与习惯", contentWidget);
     QFormLayout *leftForm = new QFormLayout(leftGroup);
     leftForm->setLabelAlignment(Qt::AlignLeft);
-    leftForm->setVerticalSpacing(10);
+    leftForm->setVerticalSpacing(18);
     leftForm->setContentsMargins(20, 25, 20, 20);
 
-    // 1. 默认视图
     defaultViewCombo = new QComboBox(leftGroup);
     defaultViewCombo->setObjectName("settingCombo");
     defaultViewCombo->addItems({"列表视图", "看板视图", "日历视图"});
@@ -528,7 +524,21 @@ void MainWindow::createSettingTab()
         Database::instance().setSetting("default_view", QString::number(index));
     });
 
-    // 2. 主题色
+    bgModeCombo = new QComboBox(leftGroup);
+    bgModeCombo->setObjectName("settingCombo");
+    bgModeCombo->addItem("深色模式", "dark");
+    bgModeCombo->addItem("浅色模式", "light");
+
+    QString savedBgMode = Database::instance().getSetting("bg_mode", "dark");
+    int bgIdx = bgModeCombo->findData(savedBgMode);
+    if (bgIdx != -1) bgModeCombo->setCurrentIndex(bgIdx);
+
+    connect(bgModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int){
+        Database::instance().setSetting("bg_mode", bgModeCombo->currentData().toString());
+        updateThemeColor();
+    });
+
+
     themeColorCombo = new QComboBox(leftGroup);
     themeColorCombo->setObjectName("settingCombo");
     themeColorCombo->addItem("默认·蓝灰", "#657896");
@@ -538,7 +548,6 @@ void MainWindow::createSettingTab()
     themeColorCombo->addItem("冷灰", "#8C949E");
     themeColorCombo->addItem("麦穗黄", "#BFA28B");
 
-    // 恢复当前选中的颜色
     QString savedColor = Database::instance().getSetting("theme_color", "#657896");
     int colorIndex = themeColorCombo->findData(savedColor);
     if (colorIndex != -1) themeColorCombo->setCurrentIndex(colorIndex);
@@ -546,26 +555,20 @@ void MainWindow::createSettingTab()
     connect(themeColorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int){
         QString color = themeColorCombo->currentData().toString();
         Database::instance().setSetting("theme_color", color);
-        updateThemeColor(color); // 立即刷新样式
+        updateThemeColor();
     });
 
-    // 3. 日历起始日
     startDayCombo = new QComboBox(leftGroup);
     startDayCombo->setObjectName("settingCombo");
     startDayCombo->addItem("周一", 1);
     startDayCombo->addItem("周日", 7);
     startDayCombo->setCurrentIndex(Database::instance().getSetting("calendar_start_day", "1").toInt() == 7 ? 1 : 0);
-    connect(startDayCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [](int){
-        int val = (QDate::currentDate().dayOfWeek()); //
-        Database::instance().setSetting("calendar_start_day", QString::number(val));
-    });
     connect(startDayCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int){
         int day = startDayCombo->currentData().toInt();
         Database::instance().setSetting("calendar_start_day", QString::number(day));
         if(calendarView) calendarView->setFirstDayOfWeek(day == 7 ? Qt::Sunday : Qt::Monday);
     });
 
-    // 4. 默认提醒时间
     defaultRemindCombo = new QComboBox(leftGroup);
     defaultRemindCombo->setObjectName("settingCombo");
     defaultRemindCombo->addItem("不自动设置", 0);
@@ -577,19 +580,17 @@ void MainWindow::createSettingTab()
     int remindIdx = defaultRemindCombo->findData(savedRemind);
     if (remindIdx != -1) defaultRemindCombo->setCurrentIndex(remindIdx);
 
-    connect(defaultRemindCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [](int){
-    });
     connect(defaultRemindCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int){
         int mins = defaultRemindCombo->currentData().toInt();
         Database::instance().setSetting("default_remind_minutes", QString::number(mins));
     });
 
     leftForm->addRow("启动视图:", defaultViewCombo);
+    leftForm->addRow("背景模式:", bgModeCombo);
     leftForm->addRow("主题主色:", themeColorCombo);
     leftForm->addRow("日历起始:", startDayCombo);
     leftForm->addRow("默认提醒:", defaultRemindCombo);
 
-    // --- 右塔：系统与数据 ---
     QGroupBox *rightGroup = new QGroupBox("系统与数据", contentWidget);
     QVBoxLayout *rightLayout = new QVBoxLayout(rightGroup);
     rightLayout->setSpacing(10);
@@ -617,10 +618,9 @@ void MainWindow::createSettingTab()
     rightLayout->addWidget(popupCheck);
     rightLayout->addWidget(autoPurgeCheck);
 
-    // 数据操作按钮区
     rightLayout->addStretch();
     QLabel *dataLabel = new QLabel("数据维护:", rightGroup);
-    dataLabel->setStyleSheet("color: #888; font-size: 11px; font-weight: bold;");
+    dataLabel->setObjectName("settingLabel");
     rightLayout->addWidget(dataLabel);
 
     QHBoxLayout *dataBtnLayout = new QHBoxLayout();
@@ -639,38 +639,29 @@ void MainWindow::createSettingTab()
     towersLayout->addWidget(leftGroup);
     towersLayout->addWidget(rightGroup);
 
-    // ==========================================
-    // 下半部分：折叠式分类管理
-    // ==========================================
     QVBoxLayout *bottomLayout = new QVBoxLayout();
     bottomLayout->setSpacing(0);
 
-    // 折叠触发按钮
     categoryToggleBtn = new QPushButton("任务分类管理 (点击展开)", contentWidget);
     categoryToggleBtn->setCheckable(true);
     categoryToggleBtn->setCursor(Qt::PointingHandCursor);
     categoryToggleBtn->setFixedHeight(40);
-    categoryToggleBtn->setStyleSheet(
-        "QPushButton { background-color: #2d2d2d; border: 1px solid #3d3d3d; border-radius: 6px; text-align: left; padding-left: 20px; font-weight: bold; color: #cccccc; }"
-        "QPushButton:hover { background-color: #383838; border-color: #657896; }"
-        "QPushButton:checked { background-color: #333333; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; }"
-        );
 
-    // 折叠容器
     categoryContainer = new QWidget(contentWidget);
-    categoryContainer->setVisible(false); // 默认隐藏
-    categoryContainer->setStyleSheet("background-color: #262626; border: 1px solid #3d3d3d; border-top: none; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;");
+    categoryContainer->setObjectName("settingCategoryContainer");
+    categoryContainer->setVisible(false);
 
     QVBoxLayout *catContainerLayout = new QVBoxLayout(categoryContainer);
     catContainerLayout->setContentsMargins(20, 20, 20, 20);
 
-    // 分类管理内容 (复用之前的逻辑)
     QHBoxLayout *catInputLayout = new QHBoxLayout();
     settingCategoryEdit = new QLineEdit(categoryContainer);
     settingCategoryEdit->setPlaceholderText("输入新分类名称...");
-    settingCategoryEdit->setStyleSheet("background-color: #1e1e1e; border: 1px solid #3d3d3d;");
 
     QPushButton *addCatBtn = new QPushButton("添加", categoryContainer);
+    addCatBtn->setObjectName("addCatBtn");
+    addCatBtn->setFixedWidth(60);
+    addCatBtn->setCursor(Qt::PointingHandCursor);
     connect(addCatBtn, &QPushButton::clicked, this, &MainWindow::onAddCategory);
 
     catInputLayout->addWidget(settingCategoryEdit);
@@ -680,7 +671,6 @@ void MainWindow::createSettingTab()
     settingCategoryList->setFixedHeight(150);
     settingCategoryList->setStyleSheet("border: none; background-color: transparent;");
 
-    // 刷新列表逻辑
     auto refreshCatList = [this]() {
         settingCategoryList->clear();
         QList<QVariantMap> cats = Database::instance().getAllCategories();
@@ -699,23 +689,21 @@ void MainWindow::createSettingTab()
     });
 
     QPushButton *delCatBtn = new QPushButton("删除选中分类", categoryContainer);
-    delCatBtn->setStyleSheet("QPushButton { background-color: #C96A6A; border: none; padding: 6px; color: white; border-radius: 4px; } QPushButton:hover { background-color: #D47C7C; }");
+    delCatBtn->setObjectName("delCatBtn"); // 使用 ObjectName 在 QSS 中控制样式
     connect(delCatBtn, &QPushButton::clicked, this, &MainWindow::onDeleteCategory);
 
     catContainerLayout->addLayout(catInputLayout);
     catContainerLayout->addWidget(settingCategoryList);
     catContainerLayout->addWidget(delCatBtn);
 
-    // 折叠逻辑连接
     connect(categoryToggleBtn, &QPushButton::toggled, this, [this](bool checked){
         categoryContainer->setVisible(checked);
-        categoryToggleBtn->setText(checked ? "🗂️ 任务分类管理 (点击收起)" : "🗂️ 任务分类管理 (点击展开)");
+        categoryToggleBtn->setText(checked ? "任务分类管理 (点击收起)" : "任务分类管理 (点击展开)");
     });
 
     bottomLayout->addWidget(categoryToggleBtn);
     bottomLayout->addWidget(categoryContainer);
 
-    // 组合所有布局
     contentLayout->addLayout(towersLayout);
     contentLayout->addSpacing(10);
     contentLayout->addLayout(bottomLayout);
@@ -803,16 +791,14 @@ void MainWindow::setupConnections()
         });
     }
 
-    // --- 自动检查逾期任务逻辑 ---
     overdueCheckTimer = new QTimer(this);
     connect(overdueCheckTimer, &QTimer::timeout, this, [this]() {
         if (taskModel) {
             taskModel->checkOverdueTasks();
         }
     });
-    overdueCheckTimer->start(60000); // 每60秒检查一次
+    overdueCheckTimer->start(60000);
 
-    // 启动后延迟1秒执行一次初次检查
     QTimer::singleShot(1000, this, [this](){
         if (taskModel) taskModel->checkOverdueTasks();
     });
@@ -1076,44 +1062,68 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 void MainWindow::loadStyleSheet()
 {
     QString styleSheet;
+    QString path = ":/styles/mainwindow.qss";
 
-    QStringList stylePaths = {
-        ":/styles/mainwindow.qss",
-        ":/styles/widget.qss",
-        ":/styles/kanban.qss",
-        ":/styles/calendar.qss",
-        ":/styles/dialog.qss",
-        ":/styles/statistic.qss",
-    };
-
-    for (const QString &path : stylePaths) {
-        QFile file(path);
-        if (file.open(QFile::ReadOnly | QFile::Text)) {
-            styleSheet += QString::fromUtf8(file.readAll());
-            styleSheet += "\n";
-            file.close();
-        } else {
-            qDebug() << "样式加载失败：" << path;
-        }
+    QFile file(path);
+    if (file.open(QFile::ReadOnly | QFile::Text)) {
+        styleSheet = QString::fromUtf8(file.readAll());
+        file.close();
     }
 
-    // --- 核心修改：主题色动态替换 ---
-    QString themeColor = Database::instance().getSetting("theme_color", "#657896");
+    QString themeColorStr = Database::instance().getSetting("theme_color", "#657896");
+    QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+    bool isLight = (bgMode == "light");
 
-    styleSheet.replace("#657896", themeColor, Qt::CaseInsensitive);
+    QColor themeColor(themeColorStr);
+    QColor themeHover = themeColor.lighter(115);
+    QColor themePressed = themeColor.darker(110);
 
-    if (!styleSheet.isEmpty()) {
-        qApp->setStyleSheet("");
-        qApp->setStyleSheet(styleSheet);
-        qDebug() << "样式表应用成功，主题色：" << themeColor;
+    // 选中项背景 (RGBA格式)
+    QString themeSelection = QString("rgba(%1, %2, %3, %4)")
+                                 .arg(themeColor.red())
+                                 .arg(themeColor.green())
+                                 .arg(themeColor.blue())
+                                 .arg(isLight ? 40 : 60);
+
+    // 4. 定义调色板
+    QMap<QString, QString> palette;
+
+    if (isLight) {
+        // --- 浅色模式 ---
+        palette["@BG_MAIN@"]   = "#f5f7fa";  // 主窗口背景
+        palette["@BG_SUB@"]    = "#ffffff";  // 卡片/弹窗背景
+        palette["@BG_INPUT@"]  = "#ffffff";  // 输入框背景
+        palette["@BORDER@"]    = "#dcdfe6";  // 边框颜色
+        palette["@TEXT_MAIN@"] = "#303133";  // 主要文字
+        palette["@TEXT_SUB@"]  = "#909399";  // 次要文字
     } else {
-        qDebug() << "样式表为空，使用默认样式";
+        // --- 深色模式 ---
+        palette["@BG_MAIN@"]   = "#303030";  // 主窗口背景
+        palette["@BG_SUB@"]    = "#454545";  // 卡片/弹窗背景
+        palette["@BG_INPUT@"]  = "#383838";  // 输入框背景
+        palette["@BORDER@"]    = "#555555";  // 边框颜色
+        palette["@TEXT_MAIN@"] = "#ffffff";  // 主要文字
+        palette["@TEXT_SUB@"]  = "#cccccc";  // 次要文字
     }
+
+    // 主题色相关
+    palette["@THEME@"]        = themeColor.name();
+    palette["@THEME_HOVER@"]  = themeHover.name();
+    palette["@THEME_PRESSED@"]= themePressed.name();
+    palette["@THEME_SELECTION@"] = themeSelection;
+
+    // 5. 执行全局替换
+    for (auto it = palette.begin(); it != palette.end(); ++it) {
+        styleSheet.replace(it.key(), it.value(), Qt::CaseInsensitive);
+    }
+
+    // 6. 应用样式
+    qApp->setStyleSheet("");
+    qApp->setStyleSheet(styleSheet);
 }
 
-void MainWindow::updateThemeColor(const QString &color)
+void MainWindow::updateThemeColor()
 {
-    Q_UNUSED(color);
     loadStyleSheet();
 }
 
@@ -1229,7 +1239,6 @@ void MainWindow::onRestoreDatabase()
     if (QMessageBox::warning(this, "警告", "恢复操作将覆盖当前所有数据且不可撤销！\n确定要继续吗？",
                              QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
 
-        // 停止线程防止占用数据库
         if(remindThread) remindThread->stop();
 
         if (Database::instance().restoreDatabase(fileName)) {
@@ -1238,7 +1247,6 @@ void MainWindow::onRestoreDatabase()
             QProcess::startDetached(qApp->arguments()[0], qApp->arguments());
         } else {
             QMessageBox::warning(this, "失败", "恢复失败，可能是文件损坏或被占用。");
-            // 重启线程
             if(remindThread) remindThread->start();
         }
     }
@@ -1249,12 +1257,36 @@ void MainWindow::onAddCategory()
     QString name = settingCategoryEdit->text().trimmed();
     if (name.isEmpty()) return;
 
-    // 随机颜色
     QStringList colors = {"#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#7696B3"};
     QString color = colors[rand() % colors.size()];
 
     if (Database::instance().addCategory(name, color)) {
         settingCategoryEdit->clear();
+
+        QListWidgetItem *item = new QListWidgetItem(name);
+        if (settingCategoryList) {
+            settingCategoryList->clear();
+            QList<QVariantMap> cats = Database::instance().getAllCategories();
+            for(const auto &c : cats) {
+                QListWidgetItem *item = new QListWidgetItem(c["name"].toString());
+                item->setData(Qt::UserRole, c["id"]);
+                QPixmap pix(14,14);
+                pix.fill(QColor(c["color"].toString()));
+                item->setIcon(QIcon(pix));
+                settingCategoryList->addItem(item);
+            }
+        }
+
+        if (filterCategoryCombo) {
+            filterCategoryCombo->clear();
+            filterCategoryCombo->addItem("所有分类", -1);
+            filterCategoryCombo->addItem("灵感记录✨", -2);
+            QList<QVariantMap> cats = Database::instance().getAllCategories();
+            for(const auto &cat : cats) {
+                filterCategoryCombo->addItem(cat["name"].toString(), cat["id"]);
+            }
+        }
+
         QMessageBox::information(this, "成功", "分类添加成功");
     } else {
         QMessageBox::warning(this, "错误", "分类已存在或添加失败");
@@ -1277,38 +1309,32 @@ void MainWindow::onTaskReminded(int taskId, const QString &title)
 {
     Q_UNUSED(taskId);
 
-    // 1. 声音提醒
     if (Database::instance().getSetting("sound_enabled", "true") == "true") {
         QApplication::beep();
     }
 
-    // 2. 弹窗提醒 (系统托盘)
     if (Database::instance().getSetting("popup_enabled", "true") == "true") {
         if (trayIcon) {
             trayIcon->showMessage("⏰ 任务到期提醒",
                                   QString("任务即将截止：\n%1").arg(title),
                                   QSystemTrayIcon::Information,
-                                  8000); // 显示8秒
+                                  8000);
         }
     }
 }
 
 void MainWindow::loadUserPreferences()
 {
-    // 1. 加载默认视图
     int defaultViewIndex = Database::instance().getSetting("default_view", "0").toInt();
-    // 确保索引有效
+
     if (defaultViewIndex >= 0 && defaultViewIndex < viewStack->count()) {
-        // 找到对应的按钮组并点击，以保持按钮状态和视图同步
         QList<QAbstractButton*> buttons = findChildren<QAbstractButton*>();
         for (QAbstractButton* btn : buttons) {
-            // 假设按钮对象名分别为 listViewBtn, kanbanViewBtn, calendarViewBtn
             if (defaultViewIndex == 0 && btn->objectName() == "listViewBtn") btn->click();
             else if (defaultViewIndex == 1 && btn->objectName() == "kanbanViewBtn") btn->click();
             else if (defaultViewIndex == 2 && btn->objectName() == "calendarViewBtn") btn->click();
         }
     }
-    // 应用日历起始日
     int startDay = Database::instance().getSetting("calendar_start_day", "1").toInt();
     if (calendarView) {
         calendarView->setFirstDayOfWeek(startDay == 7 ? Qt::Sunday : Qt::Monday);
@@ -1317,7 +1343,6 @@ void MainWindow::loadUserPreferences()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // 检查是否开启了"退出时自动清空回收站"
     if (Database::instance().getSetting("auto_purge_bin", "false") == "true") {
         QSqlQuery q(Database::instance().getDatabase());
         q.exec("DELETE FROM tasks WHERE is_deleted = 1");
@@ -1325,12 +1350,10 @@ void MainWindow::closeEvent(QCloseEvent *event)
         qDebug() << "已自动清空回收站";
     }
 
-    // 停止后台线程
     if (remindThread) {
         remindThread->stop();
         remindThread->wait();
     }
 
-    // 调用父类的关闭事件，确保窗口正常关闭
     QMainWindow::closeEvent(event);
 }

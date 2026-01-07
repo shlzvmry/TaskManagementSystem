@@ -4,12 +4,12 @@
 #include <QDialog>
 #include <QList>
 #include <QVariantMap>
-
-namespace Ui {
-class RecycleBinDialog;
-}
+#include <functional>
 
 class TaskModel;
+class QTableWidget;
+class QLabel;
+class QPushButton;
 
 class RecycleBinDialog : public QDialog
 {
@@ -31,12 +31,16 @@ private slots:
     void updateButtonStates();
 
 private:
-    Ui::RecycleBinDialog *ui;
     TaskModel *taskModel;
     QList<QVariantMap> deletedTasks;
 
+    QLabel *m_statusLabel;
+    QTableWidget *m_tableWidget;
+    QPushButton *m_restoreBtn;
+    QPushButton *m_deleteBtn;
+    QPushButton *m_clearBtn;
+
     void setupUI();
-    void setupConnections();
     void setupTable();
     int getSelectedTaskId() const;
     void showConfirmationDialog(const QString &title, const QString &message,

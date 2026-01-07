@@ -18,7 +18,6 @@ void RemindThread::stop()
 
 void RemindThread::run()
 {
-    // 每个线程需要独立的数据库连接
     QString connectionName = QString("remind_thread_%1").arg((quintptr)QThread::currentThreadId());
 
     {
@@ -31,7 +30,6 @@ void RemindThread::run()
         }
 
         while (!m_stop) {
-            // 1. 检查并更新逾期任务
             QSqlQuery overdueQuery(db);
             overdueQuery.prepare("UPDATE tasks SET status = 3 WHERE status != 2 AND status != 3 AND deadline < ? AND is_deleted = 0");
             overdueQuery.addBindValue(QDateTime::currentDateTime());
@@ -40,7 +38,6 @@ void RemindThread::run()
                 emit taskOverdueUpdated();
             }
 
-            // 2. 检查提醒 (remind_time <= now AND is_reminded = 0)
             QSqlQuery remindQuery(db);
             remindQuery.prepare("SELECT id, title FROM tasks WHERE is_reminded = 0 AND remind_time <= ? AND status != 2 AND is_deleted = 0");
             remindQuery.addBindValue(QDateTime::currentDateTime());
@@ -52,7 +49,6 @@ void RemindThread::run()
 
                     emit remindTask(id, title);
 
-                    // 标记为已提醒
                     QSqlQuery updateQuery(db);
                     updateQuery.prepare("UPDATE tasks SET is_reminded = 1 WHERE id = ?");
                     updateQuery.addBindValue(id);
@@ -60,7 +56,6 @@ void RemindThread::run()
                 }
             }
 
-            // 休眠 30 秒
             QMutexLocker locker(&m_mutex);
             if (!m_stop) {
                 m_cond.wait(&m_mutex, 30000);

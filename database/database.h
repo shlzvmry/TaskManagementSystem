@@ -31,20 +31,16 @@ public:
     bool deleteTag(int tagId);
     bool removeTaskTagRelation(int taskId, int tagId);
     QList<QVariantMap> getTasksByTagId(int tagId);
-    // 辅助功能接口
     bool backupDatabase(const QString &destPath);
     bool restoreDatabase(const QString &srcPath);
 
-    // 设置存取
     void setSetting(const QString &key, const QString &value);
     QString getSetting(const QString &key, const QString &defaultValue = "");
 
-    // 批量更新逾期任务
     int updateOverdueTasks();
 
-    // 分类管理扩展
-    bool clearCategories(); // 清空所有分类（用于初始化重置）
-    bool deleteCategory(int id); // 删除分类
+    bool clearCategories();
+    bool deleteCategory(int id);
 
     bool beginTransaction();
     bool commitTransaction();

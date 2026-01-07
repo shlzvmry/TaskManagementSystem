@@ -208,7 +208,7 @@ QList<QVariantMap> InspirationModel::getAllInspirations() const
     QList<QVariantMap> result;
 
     QSqlQuery query(db);
-    query.prepare("SELECT * FROM inspirations ORDER BY created_at DESC");
+    query.prepare("SELECT * FROM inspirations WHERE is_deleted = 0 ORDER BY created_at DESC");
 
     if (query.exec()) {
         while (query.next()) {
@@ -231,7 +231,7 @@ QList<QVariantMap> InspirationModel::getInspirationsByDate(const QDate &date) co
 
     QSqlQuery query(db);
     query.prepare("SELECT * FROM inspirations "
-                  "WHERE DATE(created_at) = ? "
+                  "WHERE DATE(created_at) = ? AND is_deleted = 0 "
                   "ORDER BY created_at DESC");
     query.addBindValue(date.toString("yyyy-MM-dd"));
 
@@ -323,7 +323,7 @@ QList<QDate> InspirationModel::getDatesWithInspirations() const
     QList<QDate> dates;
 
     QSqlQuery query(db);
-    query.prepare("SELECT DISTINCT DATE(created_at) as date FROM inspirations ORDER BY date DESC");
+    query.prepare("SELECT DISTINCT DATE(created_at) as date FROM inspirations WHERE is_deleted = 0 ORDER BY date DESC");
 
     if (query.exec()) {
         while (query.next()) {

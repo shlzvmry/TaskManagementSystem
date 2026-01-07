@@ -57,7 +57,6 @@ QMap<QString, int> StatisticModel::getTasksCountByCategory(const Filter &f) cons
 QMap<QString, int> StatisticModel::getTasksCountByPriority(const Filter &f) const
 {
     QMap<QString, int> result;
-    // 显式初始化，确保 0 值也显示
     result["紧急"] = 0; result["重要"] = 0; result["普通"] = 0; result["不急"] = 0;
 
     QStringList names = {"紧急", "重要", "普通", "不急"};
@@ -134,9 +133,8 @@ QVector<int> StatisticModel::getDailyTrend(const Filter &f) const
 
 QVector<int> StatisticModel::getMonthlyTrend(const Filter &f) const
 {
-    // 固定返回12个月的数据
     QVector<int> data(12, 0);
-    int year = f.start.date().year(); // 假设 Filter 已经是整年范围
+    int year = f.start.date().year();
 
     QSqlQuery q;
     q.prepare("SELECT strftime('%m', completed_at) as m, COUNT(*) FROM tasks "

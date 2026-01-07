@@ -3,6 +3,7 @@
 #include "dialogs/inspirationdialog.h"
 #include "views/calenderview.h"
 #include "models/taskmodel.h"
+#include "database/database.h"
 #include "dialogs/inspirationrecyclebindialog.h"
 #include "dialogs/inspirationtagsearchdialog.h"
 #include <QPainter>
@@ -40,29 +41,50 @@ void InspirationGridDelegate::paint(QPainter *painter, const QStyleOptionViewIte
 
     QRect rect = option.rect.adjusted(6, 6, -6, -6);
 
-    QColor bgColor;
-    QColor borderColor;
+    QString themeColorStr = Database::instance().getSetting("theme_color", "#657896");
+    QColor themeColor(themeColorStr);
+    QString bgMode = Database::instance().getSetting("bg_mode", "dark");
+    bool isLight = (bgMode == "light");
+
+    QColor bgColor, borderColor, textColor, timeColor;
 
     if (option.state & QStyle::State_Selected) {
-        bgColor = QColor(100, 125, 160, 160);
-        borderColor = QColor(160, 170, 230, 220);
+        bgColor = themeColor;
+        bgColor.setAlpha(isLight ? 40 : 60);
+        borderColor = themeColor;
+        textColor = isLight ? QColor("#303133") : Qt::white;
+        timeColor = isLight ? themeColor : QColor(255, 255, 255, 200);
     } else if (option.state & QStyle::State_MouseOver) {
-        bgColor = QColor(150, 185, 220, 110);
-        borderColor = QColor(255, 255, 255, 160);
+        bgColor = themeColor;
+        bgColor.setAlpha(isLight ? 20 : 30);
+        borderColor = themeColor;
+        borderColor.setAlpha(100);
+        textColor = isLight ? QColor("#303133") : Qt::white;
+        timeColor = isLight ? QColor("#909399") : QColor("#aaaaaa");
     } else {
-        bgColor = QColor(135, 160, 190, 90);
-        borderColor = QColor(255, 255, 255, 50);
+        bgColor = themeColor;
+        bgColor.setAlpha(isLight ?75 : 85);
+
+        if (isLight) {
+            borderColor = QColor("#dcdfe6");
+            textColor = QColor("#303133");
+            timeColor = QColor("#909399");
+        } else {
+            borderColor = QColor("#3d3d3d");
+            textColor = QColor("#ffffff");
+            timeColor = QColor("#cccccc");
+        }
     }
 
     painter->setBrush(bgColor);
     painter->setPen(QPen(borderColor, 1));
     painter->drawRoundedRect(rect, 10, 10);
 
-    painter->setPen(QColor(245, 245, 255));
+    painter->setPen(textColor);
     QRect textRect = rect.adjusted(12, 12, -12, -25);
     painter->drawText(textRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, content);
 
-    painter->setPen(QColor(255, 255, 255, 140));
+    painter->setPen(timeColor);
     QFont timeFont = painter->font();
     timeFont.setPointSizeF(9);
     painter->setFont(timeFont);
@@ -71,11 +93,12 @@ void InspirationGridDelegate::paint(QPainter *painter, const QStyleOptionViewIte
     painter->restore();
 }
 
+
 QSize InspirationGridDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     Q_UNUSED(option);
     Q_UNUSED(index);
-    return QSize(165, 120);
+    return QSize(169, 120);
 }
 
 InspirationView::InspirationView(QWidget *parent)
@@ -151,7 +174,6 @@ void InspirationView::setupUI()
     m_gridView->setSpacing(8);
     m_gridView->setMovement(QListWidget::Static);
     m_gridView->setSelectionMode(QListWidget::SingleSelection);
-    m_gridView->setStyleSheet("QListWidget { background-color: transparent; border: none; }");
     m_gridView->setItemDelegate(new InspirationGridDelegate(this));
 
     QFont font = m_gridView->font();
@@ -180,7 +202,6 @@ void InspirationView::setupUI()
 
     m_dateFilterCheck = new QCheckBox("筛选:", this);
     m_dateFilterCheck->setChecked(false);
-    m_dateFilterCheck->setStyleSheet("color: #cccccc;");
 
     m_yearSpin = new QSpinBox(this);
     m_yearSpin->setRange(2000, 2099);
@@ -188,10 +209,6 @@ void InspirationView::setupUI()
     m_yearSpin->setSuffix("年");
     m_yearSpin->setFixedWidth(70);
     m_yearSpin->setEnabled(false);
-    m_yearSpin->setStyleSheet(
-        "QSpinBox { background-color: #2d2d2d; color: #ffffff; border: 1px solid #3d3d3d; border-radius: 4px; padding: 2px; }"
-        "QSpinBox::up-button, QSpinBox::down-button { width: 16px; }"
-        );
 
     m_monthSpin = new QSpinBox(this);
     m_monthSpin->setRange(1, 12);
@@ -199,7 +216,6 @@ void InspirationView::setupUI()
     m_monthSpin->setSuffix("月");
     m_monthSpin->setFixedWidth(55);
     m_monthSpin->setEnabled(false);
-    m_monthSpin->setStyleSheet(m_yearSpin->styleSheet());
 
     connect(m_dateFilterCheck, &QCheckBox::toggled, this, [this](bool checked){
         m_yearSpin->setEnabled(checked);
@@ -462,23 +478,57 @@ void InspirationView::onAddClicked()
 
 void InspirationView::onDeleteClicked()
 {
-    QModelIndex index = m_tableView->currentIndex();
-    if (!index.isValid()) {
-        QMessageBox::warning(this, "提示", "请先选择一条记录");
+    int id = -1;
+    if (m_viewStack->currentIndex() == 0) {
+        QModelIndex index = m_tableView->currentIndex();
+        if (index.isValid()) {
+            id = m_model->data(index, Qt::UserRole).toMap()["id"].toInt();
+        }
+    } else if (m_viewStack->currentIndex() == 1) {
+        QList<QListWidgetItem*> selected = m_gridView->selectedItems();
+        if (!selected.isEmpty()) {
+            id = selected.first()->data(Qt::UserRole).toMap()["id"].toInt();
+        }
+    }
+
+    if (id == -1) {
+        QMessageBox::warning(this, "提示", "请先选择一条灵感记录");
         return;
     }
 
     if (QMessageBox::question(this, "确认", "确定要删除这条灵感吗？") == QMessageBox::Yes) {
-        int id = m_model->data(index, Qt::UserRole).toMap()["id"].toInt();
         m_model->deleteInspiration(id);
     }
 }
 
 void InspirationView::onEditClicked()
 {
-    QModelIndex index = m_tableView->currentIndex();
-    if (index.isValid()) {
-        onDoubleClicked(index);
+    QVariantMap data;
+    bool hasSelection = false;
+
+    if (m_viewStack->currentIndex() == 0) {
+        QModelIndex index = m_tableView->currentIndex();
+        if (index.isValid()) {
+            data = m_model->data(index, Qt::UserRole).toMap();
+            hasSelection = true;
+        }
+    } else if (m_viewStack->currentIndex() == 1) {
+        QList<QListWidgetItem*> selected = m_gridView->selectedItems();
+        if (!selected.isEmpty()) {
+            data = selected.first()->data(Qt::UserRole).toMap();
+            hasSelection = true;
+        }
+    }
+
+    if (hasSelection) {
+        InspirationDialog dialog(data, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            QVariantMap newData = dialog.getData();
+            if (newData.contains("id")) {
+                m_model->updateInspiration(newData["id"].toInt(), newData["content"].toString(), newData["tags"].toString());
+            }
+            applyFilters();
+        }
     } else {
         QMessageBox::warning(this, "提示", "请先选择一条灵感记录");
     }
