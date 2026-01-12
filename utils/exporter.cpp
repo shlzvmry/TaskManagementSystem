@@ -78,8 +78,8 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
                    "p.subtitle { text-align: center; color: #7f8c8d; font-size: 9pt; margin-top: 0; margin-bottom: 10px; }"
                    "h2 { color: #34495e; border-left: 5px solid #657896; padding-left: 8px; margin-top: 10px; margin-bottom: 5px; font-size: 12pt; }"
                    "table { width: 100%; border-collapse: collapse; }"
-                   "th, td { padding: 3px; text-align: center; }"
-                   ".stat-box { font-family: monospace; font-size: 9pt; background-color: #f8f9fa; padding: 6px; border-radius: 4px; }"
+                   "th, td { padding: 3px; }"
+                   ".stat-box { font-family: monospace; font-size: 9pt;padding: 6px; border-radius: 4px; }"
                    "</style></head><body>";
 
     html += "<h1>个人工作统计报表</h1>";
@@ -88,16 +88,17 @@ bool Exporter::exportReportToPDF(const QString &filePath, TaskModel *taskModel, 
 
     html += "<h2>1. 核心数据概览</h2>";
     html += "<div class='stat-box'>";
-    html += "<table>";
+    html += "<table width='100%'>";
     html += "<tr>"
-            "<td>任务总数: <b>" + stats["total"].toString() + "</b></td>"
-                                          "<td>已完成: <b style='color:#27ae60'>" + stats["completed"].toString() + "</b></td>"
-                                              "<td>完成率: <b>" + QString::number(stats["rate"].toDouble(), 'f', 1) + "%</b></td>"
+            "<td width='33%' style='text-align: left;'>任务总数: <b>" + stats["total"].toString() + "</b></td>"
+                                          "<td width='34%' style='text-align: center;'>已完成: <b style='color:#27ae60'>" + stats["completed"].toString() + "</b></td>"
+                                              "<td width='33%' style='text-align: right;'>完成率: <b>" + QString::number(stats["rate"].toDouble(), 'f', 1) + "%</b></td>"
                                                                   "</tr>";
+
     html += "<tr>"
-            "<td>已逾期: <b style='color:#c0392b'>" + stats["overdue"].toString() + "</b></td>"
-                                            "<td>平均耗时: <b>" + QString::number(statModel->getAverageCompletionTime(f), 'f', 1) + "h</b></td>"
-                                                                                "<td>产生灵感: <b>" + QString::number(statModel->getInspirationCount(f)) + "</b></td>"
+            "<td width='33%' style='text-align: left;'>已逾期: <b style='color:#c0392b'>" + stats["overdue"].toString() + "</b></td>"
+                                            "<td width='34%' style='text-align: center;'>平均耗时: <b>" + QString::number(statModel->getAverageCompletionTime(f), 'f', 1) + "h</b></td>"
+                                                                                "<td width='33%' style='text-align: right;'>产生灵感: <b>" + QString::number(statModel->getInspirationCount(f)) + "</b></td>"
                                                                    "</tr>";
     html += "</table></div>";
 

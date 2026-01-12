@@ -43,8 +43,9 @@ void SimpleChartWidget::paintEvent(QPaintEvent *event)
     QString bgMode = Database::instance().getSetting("bg_mode", "dark");
     bool isLight = (bgMode == "light");
 
-    QColor bgColor = isLight ? QColor("#ffffff") : QColor("#262626");
-    QColor borderColor = isLight ? QColor("#dcdfe6") : QColor("#3d3d3d");
+    QColor bgColor = isLight ? QColor("#ffffff") : QColor("#303030");
+
+    QColor borderColor = isLight ? QColor("#dcdfe6") : QColor("#555555");
     QColor textColor = isLight ? QColor("#303133") : QColor("#ffffff");
 
     painter.setPen(Qt::NoPen);
@@ -109,7 +110,6 @@ void SimpleChartWidget::drawPieChart(QPainter &painter, const QRect &rect)
     legendFont.setBold(false);
     painter.setFont(legendFont);
 
-    // 获取当前模式以调整文字颜色
     QString bgMode = Database::instance().getSetting("bg_mode", "dark");
     QColor legendTextColor = (bgMode == "light") ? QColor("#606266") : QColor("#cccccc");
 
@@ -149,7 +149,6 @@ void SimpleChartWidget::drawBarChart(QPainter &painter, const QRect &rect)
     labelFont.setBold(false);
     painter.setFont(labelFont);
 
-    // 获取当前模式以调整文字颜色
     QString bgMode = Database::instance().getSetting("bg_mode", "dark");
     QColor labelColor = (bgMode == "light") ? QColor("#606266") : QColor("#cccccc");
 
@@ -162,12 +161,12 @@ void SimpleChartWidget::drawBarChart(QPainter &painter, const QRect &rect)
         painter.setPen(Qt::NoPen);
         painter.drawRect(barRect);
 
-        painter.setPen(labelColor); // 柱状图上方数字颜色跟随标签颜色，或者固定白色
+        painter.setPen(labelColor);
         if (barHeight > 20) {
-            painter.setPen(Qt::white); // 如果柱子够高，数字画在柱子里，用白色
+            painter.setPen(Qt::white);
             painter.drawText(barRect.adjusted(0, 0, 0, 0), Qt::AlignCenter, QString::number(it.value()));
         } else {
-            painter.setPen(labelColor); // 柱子太矮，画在上面
+            painter.setPen(labelColor);
             painter.drawText(barRect.adjusted(0, -20, 0, 0), Qt::AlignCenter | Qt::AlignBottom, QString::number(it.value()));
         }
 
@@ -182,13 +181,11 @@ void SimpleChartWidget::drawBarChart(QPainter &painter, const QRect &rect)
 
 void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
 {
-    // 获取当前文本颜色（从 paintEvent 传下来的 painter 状态）
     QColor axisColor = painter.pen().color();
-    // 稍微变淡一点作为坐标轴颜色
     axisColor.setAlpha(100);
 
     if (!m_subTitle.isEmpty()) {
-        painter.setPen(axisColor); // 使用自适应颜色
+        painter.setPen(axisColor);
         QFont subFont = painter.font();
         subFont.setPointSize(9);
         subFont.setBold(false);
@@ -204,8 +201,7 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
     for (int val : m_trendValues) if (val > maxVal) maxVal = val;
     maxVal = maxVal < 5 ? 5 : maxVal + 1;
 
-    // 绘制坐标轴
-    painter.setPen(axisColor); // 使用自适应颜色
+    painter.setPen(axisColor);
     painter.drawLine(rect.bottomLeft(), rect.bottomRight());
     painter.drawLine(rect.bottomLeft(), rect.topLeft());
 
@@ -222,7 +218,7 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
         m_currentPoints.append(pt);
 
         if (showXLabels && i < m_trendLabels.size()) {
-            painter.setPen(axisColor); // 使用自适应颜色
+            painter.setPen(axisColor);
             QFont f = painter.font();
             f.setPointSize(8);
             painter.setFont(f);
@@ -234,13 +230,10 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
         }
     }
 
-    // 绘制折线
     painter.setRenderHint(QPainter::Antialiasing);
-    // 获取主题色作为折线颜色 (第6个颜色是灰色，这里我们固定用主题色或者某个显眼颜色)
     painter.setPen(QPen(getColor(6), 2));
     if (points.size() > 1) painter.drawPolyline(points.data(), points.size());
 
-    // 鼠标悬停处理
     int closestIndex = -1;
     double minDist = 10000.0;
 
@@ -255,12 +248,11 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
     }
 
     for (int j = 0; j < points.size(); ++j) {
-        // 点的填充色：跟随背景色
         QString bgMode = Database::instance().getSetting("bg_mode", "dark");
         painter.setBrush(bgMode == "light" ? Qt::white : QColor("#2d2d2d"));
 
         if (j == closestIndex) {
-            painter.setPen(QPen(axisColor, 2)); // 高亮圈颜色
+            painter.setPen(QPen(axisColor, 2));
             painter.drawEllipse(points[j], 5, 5);
 
             QString tipText = QString("数值: %1").arg(m_trendValues[j]);
@@ -280,7 +272,6 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
             if (tipRect.left() < 0) tipRect.moveLeft(5);
             if (tipRect.right() > width()) tipRect.moveRight(width() - 5);
 
-            // Tooltip 背景：半透明黑
             painter.setBrush(QColor(0, 0, 0, 200));
             painter.setPen(Qt::NoPen);
             painter.drawRoundedRect(tipRect, 4, 4);
@@ -293,9 +284,8 @@ void SimpleChartWidget::drawLineChart(QPainter &painter, const QRect &rect)
             painter.setPen(QPen(getColor(6), 2));
             painter.drawEllipse(points[j], 3, 3);
 
-            // 数值显示
             if (count <= 15 && m_trendValues[j] > 0) {
-                painter.setPen(axisColor); // 使用自适应颜色
+                painter.setPen(axisColor);
                 painter.drawText(points[j].x() - 15, points[j].y() - 20, 30, 15, Qt::AlignCenter, QString::number(m_trendValues[j]));
             }
         }

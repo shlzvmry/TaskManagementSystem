@@ -89,9 +89,13 @@ void TaskDialog::setupUI()
 
     timeInfoLayout->addWidget(new QLabel("创建于:", this));
     timeInfoLayout->addWidget(m_labelCreatedTime);
-    timeInfoLayout->addStretch();
+
+    timeInfoLayout->addStretch(1);
+
     timeInfoLayout->addWidget(new QLabel("完成于:", this));
     timeInfoLayout->addWidget(m_labelCompletedTime);
+
+    timeInfoLayout->addStretch(1);
 
     basicLayout->addRow(timeInfoWidget);
 
@@ -99,24 +103,24 @@ void TaskDialog::setupUI()
 
     // 2. 时间安排组
     QGroupBox *timeGroup = new QGroupBox("时间安排", this);
-    QGridLayout *timeLayout = new QGridLayout(timeGroup);
-    timeLayout->setVerticalSpacing(5);
-    timeLayout->setHorizontalSpacing(10);
+    QFormLayout *timeLayout = new QFormLayout(timeGroup);
+    timeLayout->setSpacing(10);
+    timeLayout->setLabelAlignment(Qt::AlignLeft);
 
     m_startEdit = new QDateTimeEdit(this);
     m_startEdit->setCalendarPopup(true);
-    timeLayout->addWidget(new QLabel("开始时间:", this), 0, 0);
-    timeLayout->addWidget(m_startEdit, 0, 1);
+    m_startEdit->setObjectName("dateTimeEdit");
+    timeLayout->addRow("开始时间:", m_startEdit);
 
     m_deadlineEdit = new QDateTimeEdit(this);
     m_deadlineEdit->setCalendarPopup(true);
-    timeLayout->addWidget(new QLabel("截止时间:", this), 0, 2);
-    timeLayout->addWidget(m_deadlineEdit, 0, 3);
+    m_deadlineEdit->setObjectName("dateTimeEdit");
+    timeLayout->addRow("截止时间:", m_deadlineEdit);
 
     m_remindEdit = new QDateTimeEdit(this);
     m_remindEdit->setCalendarPopup(true);
-    timeLayout->addWidget(new QLabel("提醒时间:", this), 1, 0);
-    timeLayout->addWidget(m_remindEdit, 1, 1);
+    m_remindEdit->setObjectName("dateTimeEdit");
+    timeLayout->addRow("提醒时间:", m_remindEdit);
 
     mainLayout->addWidget(timeGroup);
 

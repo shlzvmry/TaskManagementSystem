@@ -82,6 +82,7 @@ private:
 
     class KanbanView *kanbanView;
     class CalendarView *calendarView;
+    class InspirationView *inspirationView;
     class StatisticView *statisticView;
     class QStackedWidget *viewStack;
 

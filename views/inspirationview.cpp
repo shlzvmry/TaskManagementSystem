@@ -195,10 +195,10 @@ void InspirationView::setupUI()
     QHBoxLayout *bottomLayout = new QHBoxLayout();
 
     m_leftBottomContainer = new QWidget(this);
-    m_leftBottomContainer->setFixedWidth(195);
+    m_leftBottomContainer->setFixedWidth(240);
     QHBoxLayout *leftLayout = new QHBoxLayout(m_leftBottomContainer);
-    leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(5);
+    leftLayout->setContentsMargins(0, 2, 0, 0);
+    leftLayout->setSpacing(2);
 
     m_dateFilterCheck = new QCheckBox("筛选:", this);
     m_dateFilterCheck->setChecked(false);
@@ -207,14 +207,14 @@ void InspirationView::setupUI()
     m_yearSpin->setRange(2000, 2099);
     m_yearSpin->setValue(QDate::currentDate().year());
     m_yearSpin->setSuffix("年");
-    m_yearSpin->setFixedWidth(70);
+    m_yearSpin->setFixedWidth(95);
     m_yearSpin->setEnabled(false);
 
     m_monthSpin = new QSpinBox(this);
     m_monthSpin->setRange(1, 12);
     m_monthSpin->setValue(QDate::currentDate().month());
     m_monthSpin->setSuffix("月");
-    m_monthSpin->setFixedWidth(55);
+    m_monthSpin->setFixedWidth(80);
     m_monthSpin->setEnabled(false);
 
     connect(m_dateFilterCheck, &QCheckBox::toggled, this, [this](bool checked){
@@ -555,4 +555,9 @@ void InspirationView::setTaskModel(TaskModel *model)
     }
 }
 
-
+void InspirationView::setFirstDayOfWeek(Qt::DayOfWeek dayOfWeek)
+{
+    if (m_calendarView) {
+        m_calendarView->setFirstDayOfWeek(dayOfWeek);
+    }
+}

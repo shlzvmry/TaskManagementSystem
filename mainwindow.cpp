@@ -458,7 +458,7 @@ void MainWindow::createInspirationTab()
     QVBoxLayout *layout = new QVBoxLayout(inspirationTab);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    InspirationView *inspirationView = new InspirationView(inspirationTab);
+    inspirationView = new InspirationView(inspirationTab);
     inspirationView->setModel(inspirationModel);
     inspirationView->setTaskModel(taskModel);
 
@@ -562,11 +562,18 @@ void MainWindow::createSettingTab()
     startDayCombo->setObjectName("settingCombo");
     startDayCombo->addItem("周一", 1);
     startDayCombo->addItem("周日", 7);
-    startDayCombo->setCurrentIndex(Database::instance().getSetting("calendar_start_day", "1").toInt() == 7 ? 1 : 0);
+    int savedStartDay = Database::instance().getSetting("calendar_start_day", "1").toInt();
+    startDayCombo->setCurrentIndex(savedStartDay == 7 ? 1 : 0);
     connect(startDayCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int){
         int day = startDayCombo->currentData().toInt();
         Database::instance().setSetting("calendar_start_day", QString::number(day));
-        if(calendarView) calendarView->setFirstDayOfWeek(day == 7 ? Qt::Sunday : Qt::Monday);
+        Qt::DayOfWeek dayEnum = (day == 7 ? Qt::Sunday : Qt::Monday);
+        if(calendarView) {
+            calendarView->setFirstDayOfWeek(day == 7 ? Qt::Sunday : Qt::Monday);
+        }
+        if(inspirationView) {
+            inspirationView->setFirstDayOfWeek(dayEnum);
+        }
     });
 
     defaultRemindCombo = new QComboBox(leftGroup);
@@ -1156,11 +1163,17 @@ void MainWindow::onCalendarShowInspirations(const QDate &date)
     dlg.resize(350, 500);
     dlg.setWindowFlags(dlg.windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
+    dlg.setAutoFillBackground(true);
+
     QVBoxLayout *layout = new QVBoxLayout(&dlg);
     QListWidget *listWidget = new QListWidget(&dlg);
+
+    listWidget->setWordWrap(true);
+    listWidget->setResizeMode(QListView::Adjust);
+
     listWidget->setAlternatingRowColors(true);
-    listWidget->setStyleSheet("QListWidget { border: none; background-color: #2d2d2d; } "
-                              "QListWidget::item { padding: 10px; border-bottom: 1px solid #3d3d3d; }");
+    listWidget->setStyleSheet("QListWidget { border:1px solid #555555; background-color: #383838; } "
+                              "QListWidget::item { padding: 10px;border-bottom: 1px solid #555555; }");
 
     for (const QVariantMap &data : inspirations) {
         QString timeStr = data["created_at"].toDateTime().toString("HH:mm");
@@ -1172,6 +1185,10 @@ void MainWindow::onCalendarShowInspirations(const QDate &date)
         listWidget->addItem(item);
     }
     layout->addWidget(listWidget);
+    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Close, &dlg);
+    connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
+    layout->addWidget(btnBox);
+
     dlg.exec();
 }
 
@@ -1189,15 +1206,20 @@ void MainWindow::onCalendarShowTasks(const QDate &date)
 
     QDialog dlg(this);
     dlg.setWindowTitle(QString("任务 - %1").arg(date.toString("MM月dd日")));
-    dlg.resize(500, 300);
+    dlg.resize(550, 300);
     dlg.setWindowFlags(dlg.windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
+    dlg.setAutoFillBackground(true);
     QVBoxLayout *layout = new QVBoxLayout(&dlg);
 
     QTableWidget *table = new QTableWidget(&dlg);
-    table->setColumnCount(3);
-    table->setHorizontalHeaderLabels({"ID", "标题", "截止时间"});
+    table->setColumnCount(4);
+    table->setHorizontalHeaderLabels({"ID", "标题", "截止时间", "状态"});
+
     table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+
     table->verticalHeader()->hide();
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -1206,12 +1228,43 @@ void MainWindow::onCalendarShowTasks(const QDate &date)
 
     for(int i=0; i<dayTasks.size(); ++i) {
         const auto &t = dayTasks[i];
-        table->setItem(i, 0, new QTableWidgetItem(QString::number(t["id"].toInt())));
-        table->setItem(i, 1, new QTableWidgetItem(t["title"].toString()));
-        table->setItem(i, 2, new QTableWidgetItem(t["deadline"].toDateTime().toString("HH:mm")));
+
+        QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(t["id"].toInt()));
+        idItem->setTextAlignment(Qt::AlignCenter);
+        table->setItem(i, 0, idItem);
+
+        QTableWidgetItem *titleItem = new QTableWidgetItem(t["title"].toString());
+        titleItem->setTextAlignment(Qt::AlignCenter);
+        table->setItem(i, 1, titleItem);
+
+        QTableWidgetItem *timeItem = new QTableWidgetItem(t["deadline"].toDateTime().toString("HH:mm"));
+        timeItem->setTextAlignment(Qt::AlignCenter);
+        table->setItem(i, 2, timeItem);
+
+        int status = t["status"].toInt();
+        QString statusText;
+        switch(status) {
+        case 0: statusText = "待办"; break;
+        case 1: statusText = "进行中"; break;
+        case 2: statusText = "已完成"; break;
+        case 3: statusText = "已延期"; break;
+        default: statusText = "未知"; break;
+        }
+        QTableWidgetItem *statusItem = new QTableWidgetItem(statusText);
+        statusItem->setTextAlignment(Qt::AlignCenter);
+
+        if(status == 2) statusItem->setForeground(QColor("#4CAF50"));
+        else if(status == 3) statusItem->setForeground(QColor("#F44336"));
+
+        table->setItem(i, 3, statusItem);
     }
 
     layout->addWidget(table);
+
+    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Close, &dlg);
+    connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
+    layout->addWidget(btnBox);
+
     dlg.exec();
 }
 
@@ -1336,8 +1389,12 @@ void MainWindow::loadUserPreferences()
         }
     }
     int startDay = Database::instance().getSetting("calendar_start_day", "1").toInt();
+    Qt::DayOfWeek dayEnum = (startDay == 7 ? Qt::Sunday : Qt::Monday);
     if (calendarView) {
         calendarView->setFirstDayOfWeek(startDay == 7 ? Qt::Sunday : Qt::Monday);
+    }
+    if (inspirationView) {
+        inspirationView->setFirstDayOfWeek(dayEnum);
     }
 }
 

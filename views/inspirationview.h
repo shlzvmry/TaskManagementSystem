@@ -36,6 +36,7 @@ class InspirationView : public QWidget
 public:
     explicit InspirationView(QWidget *parent = nullptr);
     void setModel(InspirationModel *model);
+    void setFirstDayOfWeek(Qt::DayOfWeek dayOfWeek);
     bool restoreInspiration(int id);
     bool permanentDeleteInspiration(int id);
     QList<QVariantMap> getDeletedInspirations() const;
