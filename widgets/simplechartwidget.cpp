@@ -43,7 +43,7 @@ void SimpleChartWidget::paintEvent(QPaintEvent *event)
     QString bgMode = Database::instance().getSetting("bg_mode", "dark");
     bool isLight = (bgMode == "light");
 
-    QColor bgColor = isLight ? QColor("#ffffff") : QColor("#303030");
+    QColor bgColor = isLight ? QColor("#F5F7FA") : QColor("#303030");
 
     QColor borderColor = isLight ? QColor("#dcdfe6") : QColor("#555555");
     QColor textColor = isLight ? QColor("#303133") : QColor("#ffffff");

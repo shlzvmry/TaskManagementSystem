@@ -696,7 +696,7 @@ void MainWindow::createSettingTab()
     });
 
     QPushButton *delCatBtn = new QPushButton("删除选中分类", categoryContainer);
-    delCatBtn->setObjectName("delCatBtn"); // 使用 ObjectName 在 QSS 中控制样式
+    delCatBtn->setObjectName("delCatBtn");
     connect(delCatBtn, &QPushButton::clicked, this, &MainWindow::onDeleteCategory);
 
     catContainerLayout->addLayout(catInputLayout);
@@ -1085,46 +1085,43 @@ void MainWindow::loadStyleSheet()
     QColor themeHover = themeColor.lighter(115);
     QColor themePressed = themeColor.darker(110);
 
-    // 选中项背景 (RGBA格式)
     QString themeSelection = QString("rgba(%1, %2, %3, %4)")
                                  .arg(themeColor.red())
                                  .arg(themeColor.green())
                                  .arg(themeColor.blue())
                                  .arg(isLight ? 40 : 60);
 
-    // 4. 定义调色板
     QMap<QString, QString> palette;
 
     if (isLight) {
         // --- 浅色模式 ---
-        palette["@BG_MAIN@"]   = "#f5f7fa";  // 主窗口背景
-        palette["@BG_SUB@"]    = "#ffffff";  // 卡片/弹窗背景
-        palette["@BG_INPUT@"]  = "#ffffff";  // 输入框背景
-        palette["@BORDER@"]    = "#dcdfe6";  // 边框颜色
-        palette["@TEXT_MAIN@"] = "#303133";  // 主要文字
-        palette["@TEXT_SUB@"]  = "#909399";  // 次要文字
+        palette["@BG_MAIN@"]   = "#f5f7fa";
+        palette["@BG_SUB@"]    = "#ffffff";
+        palette["@BG_INPUT@"]  = "#ffffff";
+        palette["@BORDER@"]    = "#dcdfe6";
+        palette["@TEXT_MAIN@"] = "#303133";
+        palette["@TEXT_SUB@"]  = "#909399";
+        palette["@ICON_ARROW@"] = ":/icons/dark_down.png";
     } else {
         // --- 深色模式 ---
-        palette["@BG_MAIN@"]   = "#303030";  // 主窗口背景
-        palette["@BG_SUB@"]    = "#454545";  // 卡片/弹窗背景
-        palette["@BG_INPUT@"]  = "#383838";  // 输入框背景
-        palette["@BORDER@"]    = "#555555";  // 边框颜色
-        palette["@TEXT_MAIN@"] = "#ffffff";  // 主要文字
-        palette["@TEXT_SUB@"]  = "#cccccc";  // 次要文字
+        palette["@BG_MAIN@"]   = "#303030";
+        palette["@BG_SUB@"]    = "#454545";
+        palette["@BG_INPUT@"]  = "#383838";
+        palette["@BORDER@"]    = "#555555";
+        palette["@TEXT_MAIN@"] = "#ffffff";
+        palette["@TEXT_SUB@"]  = "#cccccc";
+        palette["@ICON_ARROW@"] = ":/icons/light_down.png";
     }
 
-    // 主题色相关
     palette["@THEME@"]        = themeColor.name();
     palette["@THEME_HOVER@"]  = themeHover.name();
     palette["@THEME_PRESSED@"]= themePressed.name();
     palette["@THEME_SELECTION@"] = themeSelection;
 
-    // 5. 执行全局替换
     for (auto it = palette.begin(); it != palette.end(); ++it) {
         styleSheet.replace(it.key(), it.value(), Qt::CaseInsensitive);
     }
 
-    // 6. 应用样式
     qApp->setStyleSheet("");
     qApp->setStyleSheet(styleSheet);
 }

@@ -10,5 +10,7 @@
         <file>styles/mainwindow.qss</file>
         <file>icons/left_arrow.png</file>
         <file>icons/right_arrow.png</file>
+        <file>icons/dark_down.png</file>
+        <file>icons/light_down.png</file>
     </qresource>
 </RCC>

@@ -16,7 +16,7 @@ class InspirationTagSearchDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit InspirationTagSearchDialog(InspirationModel *model, const QStringList &initialSelection, QWidget *parent = nullptr);
+    explicit InspirationTagSearchDialog(InspirationModel *model, const QStringList &initialSelection, bool initialMatchAll,QWidget *parent = nullptr);
 
     QStringList getSelectedTags() const;
     bool isMatchAll() const;
@@ -43,6 +43,7 @@ private:
     void loadTags();
     void refreshTagGrid();
     void updateAllButtonState();
+    bool m_initialMatchAll;
 };
 
 #endif // INSPIRATIONTAGSEARCHDIALOG_H

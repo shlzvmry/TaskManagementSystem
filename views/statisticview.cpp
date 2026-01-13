@@ -51,7 +51,7 @@ void StatisticView::setupUI()
 
     m_timeRangeCombo = new QComboBox();
     m_timeRangeCombo->setObjectName("filterCategoryCombo");
-    m_timeRangeCombo->addItems({"本周", "本日", "本月", "本年", "自定义"}); // 修改：增加自定义选项
+    m_timeRangeCombo->addItems({"本周", "本日", "本月", "本年", "自定义"});
     fLayout->addWidget(m_timeRangeCombo);
 
     fLayout->addWidget(new QLabel("开始日期:"));

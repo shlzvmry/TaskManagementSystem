@@ -140,6 +140,30 @@ void Database::initDefaultData()
     if (getSetting("first_run").isEmpty()) {
         setSetting("first_run", "true");
     }
+    if (getSetting("theme_color").isEmpty()) {
+        setSetting("theme_color", "#657896");
+    }
+    if (getSetting("bg_mode").isEmpty()) {
+        setSetting("bg_mode", "dark");
+    }
+    if (getSetting("default_view").isEmpty()) {
+        setSetting("default_view", "0");
+    }
+    if (getSetting("sound_enabled").isEmpty()) {
+        setSetting("sound_enabled", "true");
+    }
+    if (getSetting("popup_enabled").isEmpty()) {
+        setSetting("popup_enabled", "true");
+    }
+    if (getSetting("auto_purge_bin").isEmpty()) {
+        setSetting("auto_purge_bin", "false");
+    }
+    if (getSetting("calendar_start_day").isEmpty()) {
+        setSetting("calendar_start_day", "1");
+    }
+    if (getSetting("default_remind_minutes").isEmpty()) {
+        setSetting("default_remind_minutes", "60");
+    }
 }
 
 QSqlDatabase Database::getDatabase()

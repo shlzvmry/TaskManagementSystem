@@ -357,8 +357,8 @@ void InspirationView::refresh()
 void InspirationView::onTagSearchClicked()
 {
     if (!m_model) return;
+    InspirationTagSearchDialog dlg(m_model, m_filterTags, m_filterMatchAll, this);
 
-    InspirationTagSearchDialog dlg(m_model, m_filterTags, this);
     if (dlg.exec() == QDialog::Accepted) {
         m_filterTags = dlg.getSelectedTags();
         m_filterMatchAll = dlg.isMatchAll();
@@ -401,18 +401,22 @@ void InspirationView::applyFilters()
         if (!m_filterTags.isEmpty()) {
             if (m_filterMatchAll) {
                 for (const QString &filterTag : m_filterTags) {
-                    bool found = false;
-                    for (const QString &itemTag : itemTags) {
-                        if (itemTag.trimmed() == filterTag) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
+                    if (!itemTags.contains(filterTag, Qt::CaseInsensitive)) {
                         tagMatch = false;
                         break;
                     }
                 }
+                if (tagMatch) {
+                    int validItemTagCount = 0;
+                    for(const QString& t : itemTags) {
+                        if(!t.trimmed().isEmpty()) validItemTagCount++;
+                    }
+
+                    if (validItemTagCount != m_filterTags.size()) {
+                        tagMatch = false;
+                    }
+                }
+
             } else {
                 tagMatch = false;
                 for (const QString &filterTag : m_filterTags) {

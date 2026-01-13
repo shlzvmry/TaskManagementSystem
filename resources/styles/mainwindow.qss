@@ -1,4 +1,4 @@
-/* ================= 全局基础样式 ================= */
+/*全局基础样式 */
 * {
     font-size: 14px;
     font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
@@ -21,7 +21,7 @@ QFrame[class="settingCard"],
 QCalendarWidget QWidget {
     background-color: transparent;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: 1px;
 }
 
 QFrame#aiAnalysisFrame {
@@ -44,7 +44,6 @@ QScrollArea > QWidget > QWidget {
     background-color: transparent;
 }
 
-/* ================= 状态栏 ================= */
 QStatusBar {
     background-color: @THEME@;
     color: #ffffff;
@@ -54,7 +53,7 @@ QStatusBar {
 QStatusBar::item { border: none; }
 QStatusBar QLabel { color: #ffffff; }
 
-/* ================= 滚动条 (全局隐藏) ================= */
+/*滚动条 */
 QScrollBar:vertical, QScrollBar:horizontal {
     width: 0px;
     height: 0px;
@@ -62,7 +61,7 @@ QScrollBar:vertical, QScrollBar:horizontal {
     border: none;
 }
 
-/* ================= 标题与文本 ================= */
+/*  标题与文本 */
 QLabel { color: @TEXT_MAIN@; }
 
 QLabel#titleLabel {
@@ -104,7 +103,7 @@ QFrame[class="statCard"] {
     border-radius: 8px;
 }
 
-/* ================= GroupBox ================= */
+/* GroupBox*/
 QGroupBox {
     border: 1px solid @BORDER@;
     border-radius: 6px;
@@ -122,8 +121,8 @@ QGroupBox::title {
     background-color: @BG_SUB@;
 }
 
-/* ================= 输入控件 ================= */
-QLineEdit, QTextEdit, QPlainTextEdit, QDateEdit, QSpinBox {
+/* 输入控件 */
+QLineEdit, QTextEdit, QPlainTextEdit, QDateEdit, QDateTimeEdit, QSpinBox, QAbstractSpinBox {
     background-color: @BG_INPUT@;
     color: @TEXT_MAIN@;
     border: 1px solid @BORDER@;
@@ -133,7 +132,8 @@ QLineEdit, QTextEdit, QPlainTextEdit, QDateEdit, QSpinBox {
     selection-background-color: @THEME@;
     selection-color: white;
 }
-QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QDateEdit:focus, QSpinBox:focus {
+
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QDateEdit:focus, QDateTimeEdit:focus, QSpinBox:focus, QAbstractSpinBox:focus {
     border: 1px solid @THEME@;
 }
 
@@ -142,7 +142,7 @@ QTextEdit#aiContentEdit {
     border: none;
 }
 
-/* ================= 按钮 (基础) ================= */
+/*按钮 */
 QPushButton {
     background-color: @THEME@;
     color: white;
@@ -155,8 +155,7 @@ QPushButton {
 QPushButton:hover { background-color: @THEME_HOVER@; }
 QPushButton:pressed { background-color: @THEME_PRESSED@; }
 
-/* ================= 按钮 (次要/边框风格) ================= */
-/* 包含：视图切换、折叠、标签操作、以及对话框底部的取消按钮 */
+/* 按钮 (次要/边框风格)  */
 QPushButton#listViewBtn, QPushButton#kanbanViewBtn, QPushButton#calendarViewBtn,
 QPushButton#categoryToggleBtn,
 QPushButton#cancelInspirationBtn,
@@ -190,10 +189,9 @@ QDialogButtonBox QPushButton[text="关闭"]:hover {
 QPushButton#listViewBtn:checked:hover,
 QPushButton#kanbanViewBtn:checked:hover,
 QPushButton#calendarViewBtn:checked:hover {
-    color: white; /* 确保选中后悬停，文字依然是白色 */
+    color: white;
 }
 
-/* 红色危险按钮 */
 QPushButton#deleteTagButton, QPushButton#delCatBtn {
     background-color: #C96A6A;
     color: white;
@@ -215,7 +213,6 @@ QPushButton#tagSearchAllBtn {
     margin: 2px 2px;
 }
 
-/* 标签检索里的按钮选中状态 */
 QPushButton[class="tagSearchBtn"]:checked,
 QPushButton#tagSearchAllBtn:checked {
     background-color: @THEME@;
@@ -235,8 +232,8 @@ QPushButton#completedSeparatorBtn {
 QPushButton#completedSeparatorBtn:hover {
     background-color: @THEME_HOVER@;
 }
-/* ================= 下拉框 ================= */
-QComboBox {
+/*下拉框 */
+QComboBox, QDateEdit, QDateTimeEdit {
     background-color: @BG_INPUT@;
     color: @TEXT_MAIN@;
     border: 1px solid @BORDER@;
@@ -244,14 +241,33 @@ QComboBox {
     padding: 3px 10px;
     min-height: 28px;
 }
-QComboBox:hover { border: 1px solid @THEME@; }
-QComboBox::drop-down { border: none; width: 24px; }
-QComboBox::down-arrow {
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 6px solid @TEXT_SUB@;
-    margin-right: 8px;
+
+QComboBox:hover, QDateEdit:hover, QDateTimeEdit:hover {
+    border: 1px solid @THEME@;
 }
+
+QComboBox::drop-down,
+QDateEdit::drop-down,
+QDateTimeEdit::drop-down {
+    border: none;
+    width: 24px;
+    background-color: transparent;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+}
+
+QComboBox::down-arrow,
+QDateEdit::down-arrow,
+QDateTimeEdit::down-arrow {
+    image: url(@ICON_ARROW@);
+    width: 12px;
+    height: 12px;
+    margin-right: 8px;
+    border: none;
+    border-image: none;
+    background: none;
+}
+
 QComboBox QAbstractItemView {
     background-color: @BG_SUB@;
     color: @TEXT_MAIN@;
@@ -261,11 +277,13 @@ QComboBox QAbstractItemView {
     outline: none;
     padding: 4px 0px;
 }
+
 QComboBox QAbstractItemView::item {
     min-height: 28px;
     padding-left: 8px;
     border-left: 3px solid transparent;
 }
+
 QComboBox QAbstractItemView::item:hover,
 QComboBox QAbstractItemView::item:selected {
     background-color: @THEME_SELECTION@;
@@ -273,7 +291,7 @@ QComboBox QAbstractItemView::item:selected {
     border-left: 3px solid @THEME@;
 }
 
-/* ================= 表格与列表 ================= */
+/*表格与列表  */
 QTableView, QTableWidget, QListWidget {
     background-color: @BG_INPUT@;
     color: @TEXT_MAIN@;
@@ -340,7 +358,7 @@ QHeaderView::section:horizontal:last {
     border-top-right-radius: 0px;
 }
 
-/* ================= 日历视图 ================= */
+/* 日历视图 */
 QCalendarWidget QWidget#qt_calendar_navigationbar {
     background-color: @BG_INPUT@;
     border-bottom: 1px solid @BORDER@;
@@ -373,7 +391,7 @@ QCalendarWidget QAbstractItemView:enabled {
 }
 QCalendarWidget QAbstractItemView:disabled { color: @TEXT_SUB@; }
 
-/* ================= TabWidget ================= */
+/* TabWidget */
 QTabWidget::tab-bar { alignment: center; }
 QTabWidget::pane {
     border: 1px solid @BORDER@;
@@ -392,7 +410,7 @@ QTabBar::tab {
 QTabBar::tab:selected { background-color: @THEME@; color: white; }
 QTabBar::tab:hover:!selected { background-color: @BG_INPUT@; color: @TEXT_MAIN@; }
 
-/* ================= 菜单 ================= */
+/*菜单 */
 QMenu {
     background-color: @BG_SUB@;
     border: 1px solid @BORDER@;
@@ -402,7 +420,7 @@ QMenu {
 QMenu::item { padding: 6px 24px; }
 QMenu::item:selected { background-color: @THEME_SELECTION@; }
 
-/* ================= 自定义控件 ================= */
+/* 自定义控件 */
 PriorityWidget QPushButton, StatusWidget QPushButton {
     color: white;
     border: 2px solid transparent;
@@ -476,17 +494,16 @@ QLabel#infoLabel {
     font-size: 10px;
 }
 
-/*看板列标题样式 */
 #kanbanColumn > QLabel {
     background-color: @THEME_SELECTION@;
     color: @TEXT_MAIN@;
-    border-top-left-radius: 6px;  /* 跟随父容器圆角 */
+    border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     margin: 0px;
-    padding: 8px; /* 保持内边距 */
+    padding: 8px;
 }
 
-/* 复选框整体样式 */
+/* 选框 */
 QCheckBox {
     color: @TEXT_MAIN@;
     spacing: 8px;

@@ -102,9 +102,10 @@ private:
     int m_vSpace;
 };
 
-InspirationTagSearchDialog::InspirationTagSearchDialog(InspirationModel *model, const QStringList &initialSelection, QWidget *parent)
-    : QDialog(parent), m_model(model), m_selectedTags(initialSelection)
+InspirationTagSearchDialog::InspirationTagSearchDialog(InspirationModel *model, const QStringList &initialSelection, bool initialMatchAll,QWidget *parent)
+    : QDialog(parent), m_model(model), m_selectedTags(initialSelection), m_initialMatchAll(initialMatchAll)
 {
+    setAutoFillBackground(true);
     setWindowTitle("标签检索");
     resize(500, 400);
     setupUI();
@@ -136,6 +137,7 @@ void InspirationTagSearchDialog::setupUI()
     QHBoxLayout *bottomLayout = new QHBoxLayout();
 
     m_matchAllCheckBox = new QCheckBox("仅显示包含所有选中标签的记录", this);
+    m_matchAllCheckBox->setChecked(m_initialMatchAll);
     bottomLayout->addWidget(m_matchAllCheckBox);
     bottomLayout->addStretch();
 

@@ -44,11 +44,9 @@ private slots:
     void loadExistingTags();
 
 private:
-    // [修改] 移除 Ui::TaskDialog *ui;
     bool m_isEditMode;
     int m_taskId;
 
-    // UI 控件指针
     QLineEdit *m_titleEdit;
     QComboBox *m_categoryCombo;
     PriorityWidget *m_priorityWidget;
