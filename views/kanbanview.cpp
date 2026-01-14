@@ -345,3 +345,16 @@ void KanbanView::setModel(TaskModel *model)
         connect(col, &KanbanColumn::taskDoubleClicked, this, &KanbanView::editTaskRequested);
     }
 }
+
+void KanbanView::setFilter(int categoryId, int priority, const QString &text)
+{
+    for (TaskFilterModel *filter : m_filters) {
+        if (!filter) continue;
+
+        filter->setFilterCategory(categoryId);
+        filter->setFilterText(text);
+        if (m_groupMode == GroupByStatus) {
+            filter->setFilterPriority(priority);
+        }
+    }
+}

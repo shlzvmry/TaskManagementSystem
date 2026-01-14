@@ -1,9 +1,15 @@
 #include "recyclebindialog.h"
-#include "ui_recyclebindialog.h"
 #include "models/taskmodel.h"
-#include <QMessageBox>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 #include <QHeaderView>
-#include <QDebug>
+#include <QMessageBox>
+#include <QDateTime>
+#include <QFrame>
 
 RecycleBinDialog::RecycleBinDialog(QWidget *parent)
     : QDialog(parent)

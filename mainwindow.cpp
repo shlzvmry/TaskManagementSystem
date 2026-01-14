@@ -399,6 +399,9 @@ void MainWindow::createTaskTab()
         if (calendarView) {
             calendarView->setFilter(catId, pri);
         }
+        if (kanbanView) {
+            kanbanView->setFilter(catId, pri, text);
+        }
     };
 
     connect(filterCategoryCombo, &QComboBox::currentIndexChanged, this, updateFilters);
@@ -1169,8 +1172,10 @@ void MainWindow::onCalendarShowInspirations(const QDate &date)
     listWidget->setResizeMode(QListView::Adjust);
 
     listWidget->setAlternatingRowColors(true);
-    listWidget->setStyleSheet("QListWidget { border:1px solid #555555; background-color: #383838; } "
-                              "QListWidget::item { padding: 10px;border-bottom: 1px solid #555555; }");
+    listWidget->setStyleSheet(
+        "QListWidget { background-color: transparent; border: none; }"
+        "QListWidget::item { padding: 10px; border-bottom: 1px solid #555555; }"
+        );
 
     for (const QVariantMap &data : inspirations) {
         QString timeStr = data["created_at"].toDateTime().toString("HH:mm");

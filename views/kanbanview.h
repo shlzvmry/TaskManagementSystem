@@ -44,7 +44,7 @@ class KanbanView : public QWidget
     Q_OBJECT
 public:
     enum GroupMode { GroupByStatus, GroupByPriority };
-
+    void setFilter(int categoryId, int priority, const QString &text);
     explicit KanbanView(QWidget *parent = nullptr);
     void setModel(TaskModel *model);
     void setGroupMode(GroupMode mode);

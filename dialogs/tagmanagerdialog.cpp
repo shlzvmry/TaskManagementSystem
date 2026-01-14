@@ -25,7 +25,7 @@ TagManagerDialog::~TagManagerDialog() {}
 
 void TagManagerDialog::setupUI()
 {
-    resize(700, 450);
+    resize(805, 450);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(20, 20, 20, 20);
